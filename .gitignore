@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.spec.bak
+
+# Ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Cópia/backup para outro PC (duplica o projeto; inclui .zip de gigas)
+LoL_Dota_Oracle_Pacote_Viagem/
+
+# Dados e artefatos grandes (remova a linha se quiser versionar)
+/data/
+/model_artifacts/
+
+# Arquivos de backup compactados (não versionar)
+*.zip
+
+# OS
+Thumbs.db
+.DS_Store

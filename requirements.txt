@@ -1,0 +1,41 @@
+# ===============================
+# LoL Oracle ML v3 — Requirements
+# ===============================
+
+# Data handling & ML core
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+joblib==1.4.2
+
+# Database & data I/O
+SQLAlchemy==2.0.36
+sqlite-utils==3.37
+openpyxl==3.1.5
+requests==2.32.3
+
+# Visualization & plots
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# Streamlit app & UI
+streamlit==1.39.0
+altair==5.3.0
+plotly==5.24.1
+
+# Desktop UI (PySide6)
+PySide6==6.7.0
+
+# Build tools
+pyinstaller==6.3.0
+
+# Model persistence & serialization
+pickle-mixin==1.0.2
+cloudpickle==3.0.0
+
+# Utility / Dev tools
+tqdm==4.66.5
+python-dotenv==1.0.1
+
+# Stratz API (evitar 403 Cloudflare)
+cloudscraper>=1.2.71
