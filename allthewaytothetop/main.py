@@ -556,14 +556,44 @@ def update_dota_prebets(req: DotaPrebetsUpdateRequest):
         code = -1
 
     db_after = _db_snapshot_cyberscore(db_path)
+    ra = db_after.get("rows")
+    rb = db_before.get("rows")
+    zero_links = "Partidas válidas encontradas: 0" in (out or "")
+    returncode_ok = code == 0
+    # Não tratar como sucesso se: CyberScore listou 0 partidas, ou banco ainda vazio, ou perda de rows
+    rows_ok = (
+        ra is not None
+        and int(ra) > 0
+        and (rb is None or int(ra) >= int(rb))
+    )
+    ok = returncode_ok and not zero_links and rows_ok
+
+    warning = None
+    if zero_links:
+        warning = (
+            "CyberScore retornou 0 partidas na página 1 para esse team_id. "
+            "Abra no browser: https://cyberscore.live/en/teams/<ID>/matches?page=1 — "
+            "pode ser ID inválido, layout, ou carregamento headless sem links."
+        )
+    elif returncode_ok and not rows_ok:
+        warning = (
+            "O processo terminou com exit 0, mas o banco não indica partidas importadas "
+            "(rows=0, schema ausente, ou perda de dados). "
+            "Restaure o cyberscore.db no volume (ex.: /app/data/cyberscore.db) ou confirme CYBERSCORE_DB_PATH."
+        )
+
     body = {
-        "ok": code == 0,
+        "ok": ok,
+        "returncode": code,
+        "returncode_ok": returncode_ok,
+        "zero_links_reported": zero_links,
+        "rows_ok": rows_ok,
         "team_id": team_id,
         "db_before": db_before,
         "db_after": db_after,
+        "warning": warning,
         "stdout": out,
         "stderr": err,
-        "returncode": code,
     }
     return JSONResponse(content=jsonable_encoder(body))
 
