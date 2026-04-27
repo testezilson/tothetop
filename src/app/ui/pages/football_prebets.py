@@ -22,8 +22,10 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QTabWidget,
     QCompleter,
+    QListView,
     QSizePolicy,
 )
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtCore import (
     QThread,
     Signal,
@@ -39,7 +41,40 @@ from core.football import prebets_football as pb
 
 # Sugestões de equipa: tamanho limitado (menos carga no QCompleter) e só sénior / profissional aprox.
 _MAX_TEAM_SUGGESTIONS = 25
-_COMPLETER_MAX_VISIBLE = 12
+_COMPLETER_MAX_VISIBLE = 10
+
+# Popup do QCompleter: sem isto, no tema escuro a lista fica com fundo claro e o texto
+# herda a cor clara (contraste invisível) — ver relatos de "não dá para ler".
+_COMPLETER_POPUP_QSS = """
+QListView {
+    background-color: #2d2d2d;
+    color: #f2f2f2;
+    border: 1px solid #5a5a5a;
+    border-radius: 2px;
+    padding: 2px;
+    outline: none;
+    font-size: 13px;
+}
+QListView::item {
+    min-height: 26px;
+    padding: 4px 10px;
+    color: #f2f2f2;
+    background-color: #2d2d2d;
+}
+QListView::item:hover {
+    background-color: #3d5a80;
+    color: #ffffff;
+}
+QListView::item:selected {
+    background-color: #1565c0;
+    color: #ffffff;
+}
+QListView::item:selected:active {
+    background-color: #0d47a1;
+    color: #ffffff;
+}
+"""
+_DEBOUNCE_MS = 650
 
 # Base, futsal, notas "segunda equipa" em palavra-passe.
 _BASE_YOUTH_WORDS = re.compile(
@@ -610,19 +645,19 @@ class FootballPrebetsPage(QWidget):
         self._map_player: dict = {}
         self._deb_t1 = QTimer(self)
         self._deb_t1.setSingleShot(True)
-        self._deb_t1.setInterval(450)
+        self._deb_t1.setInterval(_DEBOUNCE_MS)
         self._deb_t1.timeout.connect(lambda: self._fetch_team_suggestions(1))
         self._deb_t2 = QTimer(self)
         self._deb_t2.setSingleShot(True)
-        self._deb_t2.setInterval(450)
+        self._deb_t2.setInterval(_DEBOUNCE_MS)
         self._deb_t2.timeout.connect(lambda: self._fetch_team_suggestions(2))
         self._deb_pt = QTimer(self)
         self._deb_pt.setSingleShot(True)
-        self._deb_pt.setInterval(450)
+        self._deb_pt.setInterval(_DEBOUNCE_MS)
         self._deb_pt.timeout.connect(self._fetch_team_suggestions_for_player)
         self._deb_pl = QTimer(self)
         self._deb_pl.setSingleShot(True)
-        self._deb_pl.setInterval(450)
+        self._deb_pl.setInterval(_DEBOUNCE_MS)
         self._deb_pl.timeout.connect(self._fetch_player_suggestions)
         self._ref_seq = 0
         # Seq. monotónica por campo (Time1, Time2, equipa na aba Jogadores) para ignorar respostas antigas
@@ -660,6 +695,26 @@ class FootballPrebetsPage(QWidget):
         if k:
             self.api.set_key(k)
 
+    def _style_completer_popup(self, c: QCompleter) -> None:
+        """Fundo/ texto do popup (QListView) alinhado ao tema escuro; evita letra clara em fundo claro."""
+        v = c.popup()
+        if v is None:
+            return
+        v.setStyleSheet(_COMPLETER_POPUP_QSS)
+        if isinstance(v, QListView):
+            v.setUniformItemSizes(True)
+            v.setTextElideMode(Qt.TextElideMode.ElideRight)
+        try:
+            pal = v.palette()
+            pal.setColor(QPalette.ColorRole.Base, QColor(45, 45, 45))
+            pal.setColor(QPalette.ColorRole.Text, QColor(242, 242, 242))
+            pal.setColor(QPalette.ColorRole.Highlight, QColor(21, 101, 192))
+            pal.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
+            v.setPalette(pal)
+            v.setAutoFillBackground(True)
+        except (TypeError, AttributeError):
+            pass
+
     def _build_teams_tab(self) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
@@ -681,6 +736,7 @@ class FootballPrebetsPage(QWidget):
                 pass
         self.t1_q.setCompleter(self._comp1)
         self._comp1.setMaxVisibleItems(_COMPLETER_MAX_VISIBLE)
+        self._style_completer_popup(self._comp1)
         self.t1_q.textChanged.connect(self._on_t1_text)
         self.t1_q.editingFinished.connect(self._schedule_ref_lookup)
         try:
@@ -707,6 +763,7 @@ class FootballPrebetsPage(QWidget):
                 pass
         self.t2_q.setCompleter(self._comp2)
         self._comp2.setMaxVisibleItems(_COMPLETER_MAX_VISIBLE)
+        self._style_completer_popup(self._comp2)
         self.t2_q.textChanged.connect(self._on_t2_text)
         self.t2_q.editingFinished.connect(self._schedule_ref_lookup)
         try:
@@ -815,6 +872,7 @@ class FootballPrebetsPage(QWidget):
                 pass
         self.pt_q.setCompleter(self._compt)
         self._compt.setMaxVisibleItems(_COMPLETER_MAX_VISIBLE)
+        self._style_completer_popup(self._compt)
         self.pt_q.textChanged.connect(self._on_pt_text)
         ft.addRow("Equipa:", self.pt_q)
         gt.setLayout(ft)
@@ -835,6 +893,7 @@ class FootballPrebetsPage(QWidget):
                 pass
         self.pname_q.setCompleter(self._compl)
         self._compl.setMaxVisibleItems(_COMPLETER_MAX_VISIBLE)
+        self._style_completer_popup(self._compl)
         self.pname_q.textChanged.connect(self._on_pname_text)
         fp.addRow("Nome:", self.pname_q)
         self.st_pl = QComboBox()
@@ -1050,8 +1109,7 @@ class FootballPrebetsPage(QWidget):
         self._deb_pl.start()
 
     def _on_team_search_result(self, seq: int, which: int, teams_obj: object) -> None:
-        # 1) Evita actualizar o QStringListModel enquanto o QCompleter está a desenhar o popup
-        #    (crash conhecido no Windows/Qt). 2) Adia 1 tick para sair de pilha de eventos reentrante.
+        # Adia 1 tick: evita reentrância (crash conhecido ao substituir o model no Windows/Qt).
         QTimer.singleShot(
             0,
             lambda s=seq, w=which, t=teams_obj: self._apply_team_search_result(s, w, t),
@@ -1074,12 +1132,7 @@ class FootballPrebetsPage(QWidget):
                 model = self._mpt
                 mref = self._map_pt
                 comp = self._compt
-            try:
-                pop = comp.popup()
-                if pop is not None and pop.isVisible():
-                    pop.hide()
-            except (RuntimeError, AttributeError, TypeError):
-                pass
+            # Não fazer popup().hide() aqui: fechava a lista antes de dar tempo a clicar num item.
             if w.text().strip() == "" or len(w.text().strip()) < 2:
                 mref.clear()
                 with QSignalBlocker(w):
@@ -1112,6 +1165,12 @@ class FootballPrebetsPage(QWidget):
                     continue
             with QSignalBlocker(w):
                 model.setStringList(sl)
+            if sl:
+                try:
+                    comp.setCompletionPrefix(w.text())
+                    comp.complete()
+                except (RuntimeError, TypeError, AttributeError):
+                    pass
         except Exception:
             try:
                 if which in (1, 2):

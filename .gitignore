@@ -30,6 +30,9 @@ LoL_Dota_Oracle_Pacote_Viagem/
 # Dados e artefatos grandes (remova a linha se quiser versionar)
 /data/
 /model_artifacts/
+# App web (FastAPI) — mesma política: código sim, DB/ML em deploy/CI
+allthewaytothetop/data/
+allthewaytothetop/model_artifacts/
 
 # Arquivos de backup compactados (não versionar)
 *.zip

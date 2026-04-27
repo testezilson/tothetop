@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LoL Oracle ML - Player</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h1 class="title">LoL Oracle ML - Player Prebets</h1>
+
+<div class="container page-wrap">
+    <section class="params-panel">
+        <h2>Seleção e parâmetros</h2>
+
+        <div class="params-grid">
+            <label for="player">Player</label>
+            <div class="autocomplete">
+                <input id="player" value="Caps" autocomplete="off">
+                <div id="playerSuggestions" class="suggestions"></div>
+            </div>
+
+            <label for="stat">Estatística</label>
+            <select id="stat">
+                <option value="kills">Kills</option>
+                <option value="deaths">Deaths</option>
+                <option value="assists">Assists</option>
+                <option value="cs">CS</option>
+            </select>
+
+            <label for="line">Linha (mercado)</label>
+            <input id="line" value="5.5">
+
+            <label for="limitGames">Jogos recentes</label>
+            <input id="limitGames" value="10" inputmode="numeric">
+
+            <label for="oddOver">Odd over</label>
+            <input id="oddOver" value="1.90">
+
+            <label for="oddUnder">Odd under</label>
+            <input id="oddUnder" value="1.90">
+        </div>
+
+        <div class="actions">
+            <button type="button" onclick="calcularPlayer()">Analisar player</button>
+            <button type="button" class="secondary" onclick="limparResultados()">Limpar resultados</button>
+        </div>
+    </section>
+
+    <div id="statusBox" class="status-box hidden"></div>
+
+    <section id="recommendationBlock" class="recommendation-block">
+        <div class="label">Recomendação</div>
+        <div id="recommendation" class="recommendation">--</div>
+
+        <div class="summary-cards">
+            <div class="summary-card green"><h3>Prob Over</h3><p id="probOver">--</p></div>
+            <div class="summary-card red"><h3>Prob Under</h3><p id="probUnder">--</p></div>
+            <div class="summary-card green"><h3>EV Over</h3><p id="evOver">--</p></div>
+            <div class="summary-card red"><h3>EV Under</h3><p id="evUnder">--</p></div>
+            <div class="summary-card"><h3>Odd Justa<br>Over</h3><p id="fairOver">--</p></div>
+            <div class="summary-card"><h3>Odd Justa<br>Under</h3><p id="fairUnder">--</p></div>
+        </div>
+        <div id="evLines" class="ev-lines"></div>
+    </section>
+
+    <section class="matchup-dashboard dashboard">
+        <div class="team-section team-green">
+            <div class="team-header" id="t1Header">Player</div>
+
+            <div class="metric-row">
+                <div class="metric-card"><span>TOTAL OVER</span><strong id="t1TotalPct">--</strong><small id="t1TotalMeta">--</small></div>
+                <div class="metric-card"><span>VITÓRIAS OVER</span><strong id="t1WinsPct">--</strong><small id="t1WinsMeta">--</small></div>
+                <div class="metric-card"><span>DERROTAS OVER</span><strong id="t1LossesPct">--</strong><small id="t1LossesMeta">--</small></div>
+            </div>
+
+            <div class="metric-row under-row">
+                <div class="metric-card"><span>TOTAL UNDER</span><strong id="t1TotalUnderPct">--</strong><small id="t1TotalUnderMeta">--</small></div>
+                <div class="metric-card"><span>VITÓRIAS UNDER</span><strong id="t1WinsUnderPct">--</strong><small id="t1WinsUnderMeta">--</small></div>
+                <div class="metric-card"><span>DERROTAS UNDER</span><strong id="t1LossesUnderPct">--</strong><small id="t1LossesUnderMeta">--</small></div>
+            </div>
+
+            <div id="team1Recent" class="recent-card"></div>
+            <div class="wl-grid">
+                <div class="wl-table" id="team1WinsTable"></div>
+                <div class="wl-table" id="team1LossesTable"></div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+function showStatus(message, type = "info") { const box = document.getElementById("statusBox"); if (!box) return; box.className = `status-box ${type}`; box.innerText = message; }
+function clearStatus() { const box = document.getElementById("statusBox"); if (!box) return; box.className = "status-box hidden"; box.innerText = ""; }
+function detailToMessage(detail) { if (detail == null) return ""; if (typeof detail === "string") return detail; if (Array.isArray(detail)) return detail.map((e) => (e && (e.msg || e.message)) || JSON.stringify(e)).join(" "); return String(detail); }
+function fmtPct(v) { if (v === null || v === undefined) return "--"; const n = Number(v); if (Number.isNaN(n)) return "--"; return n.toFixed(1) + "%"; }
+function fmtSignedPct(v) { if (v === null || v === undefined || Number.isNaN(Number(v))) return "--"; const n = Number(v); return (n >= 0 ? "+" : "") + n.toFixed(1) + "%"; }
+function fmtOdd(v) { if (v === null || v === undefined || v === "" || (typeof v === "number" && !Number.isFinite(v))) return "--"; const n = Number(v); if (Number.isNaN(n) || !Number.isFinite(n)) return "--"; return n.toFixed(3); }
+function setText(id, value) { const el = document.getElementById(id); if (el) el.innerText = value ?? "--"; }
+
+const HUD_FIELD_IDS = [
+  "t1TotalPct","t1TotalMeta","t1WinsPct","t1WinsMeta","t1LossesPct","t1LossesMeta",
+  "t1TotalUnderPct","t1TotalUnderMeta","t1WinsUnderPct","t1WinsUnderMeta","t1LossesUnderPct","t1LossesUnderMeta"
+];
+const SUMMARY_FIELD_IDS = ["recommendation","probOver","probUnder","evOver","evUnder","fairOver","fairUnder"];
+
+function limparResultados() {
+  clearStatus();
+  setText("t1Header", "Player");
+  HUD_FIELD_IDS.forEach((id) => setText(id, "--"));
+  SUMMARY_FIELD_IDS.forEach((id) => setText(id, "--"));
+  const evLines = document.getElementById("evLines"); if (evLines) evLines.innerHTML = "";
+  const r1 = document.getElementById("team1Recent"); if (r1) r1.innerHTML = "";
+  ["team1WinsTable","team1LossesTable"].forEach((id) => { const t = document.getElementById(id); if (t) t.innerHTML = ""; });
+}
+
+function recentRow(label, count, pct, avg) {
+  const numPct = Number(pct);
+  const safePct = Number.isFinite(numPct) ? Math.max(0, Math.min(100, numPct)) : 0;
+  return `<div class="recent-row"><div class="recent-label">${label}</div><div class="recent-count">${count || "--"}</div><div class="recent-bar"><div class="recent-fill" style="width:${safePct}%"></div></div><div class="recent-value">${fmtPct(pct)}</div><div class="recent-avg">${avg || "--"}</div></div>`;
+}
+function wlPctClass(pct) { const n = Number(pct); if (!Number.isFinite(n)) return "wl-pct-mid"; if (n >= 55) return "wl-pct-high"; if (n < 45) return "wl-pct-low"; return "wl-pct-mid"; }
+function rowSummary(label, s) { if (!s || s.games == null || !s.games) return `<div class="wl-row"><span>${label}</span><span>0/0</span><span>--</span><span>--</span></div>`; return `<div class="wl-row"><span>${label}</span><span>${s.over}/${s.games}</span><span>${fmtPct(s.over_pct)}</span><span>${s.avg_display != null && s.avg_display !== "" ? s.avg_display : (s.avg != null && s.avg !== "" ? s.avg : "--")}</span></div>`; }
+function renderWLTable(id, title, block) { const el = document.getElementById(id); if (!el) return; const recent = (block && block.recent) || {}; el.innerHTML = `<div class="wl-title">${title}</div><div class="wl-head"><span>Amostra</span><span>Jogos</span><span>Over %</span><span>Avg</span></div>${rowSummary("Total", block)}${rowSummary("Last 15", recent.last_15)}${rowSummary("Last 10", recent.last_10)}${rowSummary("Last 5", recent.last_5)}`; }
+function brRowLine(label, block, isOverBar) { if (!block || block.games == null) return `<tr><td class="wl-amostra" colspan="8">${label}: —</td></tr>`; const o = block.over; const u = block.under; const g = block.games; const op = block.over_pct; const up = block.under_pct; const barPct = isOverBar ? op : up; const w = Math.max(0, Math.min(100, Number(barPct) || 0)); const ad = block.avg_display != null ? block.avg_display : (block.avg != null ? String(Number(block.avg).toFixed(1)) : "—"); return `<tr><td class="wl-amostra">${label}</td><td class="wl-jogos mono">${g}</td><td class="wl-num mono">${o}</td><td class="wl-num mono">${u}</td><td class="wl-ov ${wlPctClass(op)} mono">${fmtPct(op)}</td><td class="wl-ud mono">${fmtPct(up)}</td><td class="wl-bar"><div class="wl-bar-bg"><div class="wl-bar-fill" style="width:${w}%"></div></div></td><td class="wl-avg mono">${ad}</td></tr>`; }
+function breakdownTotalTableRow(total, periodGames) { if (!total) return ""; return `<div class="bd-total-block"><div class="wl-table-title">Total · últimos ${periodGames ?? "N"}</div><table class="wl-table wl-table-dense"><thead><tr><th>Amostra</th><th>Jogos</th><th>Over</th><th>Under</th><th>O %</th><th>U %</th><th class="wl-bar-h"></th><th>Avg</th></tr></thead><tbody>${brRowLine("Recorte", total, true)}</tbody></table></div>`; }
+function breakdownPanelHtml(bd, periodGames) { if (!bd) return `<p class="wl-hint">Sem <code>breakdown</code> no JSON.</p>`; const lineTag = (bd.line != null && Number.isFinite(Number(bd.line))) ? `<p class="bd-line">Linha do mercado: <strong>${bd.line}</strong></p>` : ""; const totalBlock = breakdownTotalTableRow(bd.total, periodGames || bd.period_games); if (bd.has_wl === false) return `${lineTag}${totalBlock}<p class="wl-hint">Resultado (W/L) indisponível no histórico do Oracle.</p>`; return `${lineTag}${totalBlock}`; }
+function hudWinLossPct(summary, key, fallbackKey) { if (summary == null) return "--"; if (Object.prototype.hasOwnProperty.call(summary, key) && summary[key] === null) return "--"; if (Object.prototype.hasOwnProperty.call(summary, key) && summary[key] != null) return fmtPct(summary[key]); return fmtPct(summary[fallbackKey]); }
+
+function renderHudTeam(prefix, teamName, summary, breakdown, recentId, periodGames) {
+  setText(`${prefix}Header`, teamName);
+  const totalBlock = breakdown?.total || summary;
+  const winsBlock = breakdown?.wins || null;
+  const lossesBlock = breakdown?.losses || null;
+
+  setText(`${prefix}TotalPct`, fmtPct(totalBlock?.over_pct));
+  setText(`${prefix}TotalMeta`, `${totalBlock?.over ?? "--"}/${totalBlock?.games ?? "--"} over · avg ${totalBlock?.avg_display ?? totalBlock?.avg ?? "--"}`);
+  setText(`${prefix}WinsPct`, hudWinLossPct(summary, "wins_pct", "over_pct"));
+  setText(`${prefix}WinsMeta`, summary?.wins_meta ?? "—");
+  setText(`${prefix}LossesPct`, hudWinLossPct(summary, "losses_pct", "under_pct"));
+  setText(`${prefix}LossesMeta`, summary?.losses_meta ?? "—");
+
+  setText(`${prefix}TotalUnderPct`, fmtPct(totalBlock?.under_pct));
+  setText(`${prefix}TotalUnderMeta`, `${totalBlock?.under ?? "--"}/${totalBlock?.games ?? "--"} under · avg ${totalBlock?.avg_display || totalBlock?.avg || "--"}`);
+  setText(`${prefix}WinsUnderPct`, fmtPct(winsBlock?.under_pct));
+  setText(`${prefix}WinsUnderMeta`, `${winsBlock?.under ?? "--"}/${winsBlock?.games ?? "--"} under · avg ${winsBlock?.avg_display || winsBlock?.avg || "--"}`);
+  setText(`${prefix}LossesUnderPct`, fmtPct(lossesBlock?.under_pct));
+  setText(`${prefix}LossesUnderMeta`, `${lossesBlock?.under ?? "--"}/${lossesBlock?.games ?? "--"} under · avg ${lossesBlock?.avg_display || lossesBlock?.avg || "--"}`);
+
+  const recent = summary?.recent || [];
+  const recHint = breakdown?.win_loss_record ? `<p class="wl-rec">${breakdown.win_loss_record}</p>` : "";
+  const wlHtml = breakdownPanelHtml(breakdown, periodGames);
+  const el = document.getElementById(recentId);
+  if (el) {
+    const bars = recent.map((r) => recentRow(r.label, r.count, r.pct, r.avg)).join("");
+    el.innerHTML = `${recHint}${bars ? `<div class="recent-bars-wrap">${bars}</div>` : ""}${wlHtml}`;
+  }
+
+  renderWLTable("team1WinsTable", "VITÓRIAS", breakdown && breakdown.wins);
+  renderWLTable("team1LossesTable", "DERROTAS", breakdown && breakdown.losses);
+}
+
+async function calcularPlayer() {
+  clearStatus();
+  showStatus("Calculando...", "info");
+  const payload = {
+    player: document.getElementById("player").value,
+    stat: document.getElementById("stat").value,
+    line: parseFloat(document.getElementById("line").value.replace(",", ".")),
+    odd_over: parseFloat(document.getElementById("oddOver").value.replace(",", ".")),
+    odd_under: parseFloat(document.getElementById("oddUnder").value.replace(",", ".")),
+    limit_games: parseInt(document.getElementById("limitGames").value, 10),
+  };
+  try {
+    const res = await fetch("/api/lol/player-prebets", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showStatus(detailToMessage(data.detail) || data.error || "Erro ao calcular.", "error"); return; }
+
+    setText("recommendation", data.recommendation || "--");
+    setText("probOver", fmtPct(data.prob_over));
+    setText("probUnder", fmtPct(data.prob_under));
+    setText("evOver", fmtSignedPct(data.ev_over));
+    setText("evUnder", fmtSignedPct(data.ev_under));
+    setText("fairOver", fmtOdd(data.fair_over));
+    setText("fairUnder", fmtOdd(data.fair_under));
+
+    const lineVal = Number.isFinite(payload.line) ? payload.line : Number(payload.line);
+    const lineStr = Number.isFinite(lineVal) ? String(lineVal) : (payload.line ?? "--");
+    document.getElementById("evLines").innerHTML = `<div>Over ${lineStr}: fair ${fmtOdd(data.fair_over)} — EV = ${fmtSignedPct(data.ev_over)}</div><div>Under ${lineStr}: fair ${fmtOdd(data.fair_under)} — EV = ${fmtSignedPct(data.ev_under)}</div>`;
+
+    renderHudTeam("t1", data.player || payload.player, data.team_summary, data.breakdown, "team1Recent", payload.limit_games);
+    showStatus("Cálculo concluído.", "success");
+  } catch (err) {
+    console.error(err);
+    showStatus("Erro de conexão com a API.", "error");
+  }
+}
+
+function setupPlayerAutocomplete(inputId, boxId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  let currentItems = [];
+  async function search() {
+    const q = input.value.trim();
+    box.innerHTML = "";
+    currentItems = [];
+    if (q.length < 2) return;
+    const res = await fetch(`/api/lol/players?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const seen = new Set();
+    currentItems = (data || []).filter((item) => {
+      const k = (item.name || "").toLowerCase().trim();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    currentItems.forEach((item) => {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.textContent = item.name;
+      div.onclick = () => { input.value = item.name; box.innerHTML = ""; };
+      box.appendChild(div);
+    });
+  }
+  input.addEventListener("input", search);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && currentItems.length > 0) { e.preventDefault(); input.value = currentItems[0].name; box.innerHTML = ""; }
+  });
+  document.addEventListener("click", (e) => {
+    if (!box.contains(e.target) && e.target !== input) box.innerHTML = "";
+  });
+}
+
+setupPlayerAutocomplete("player", "playerSuggestions");
+</script>
+</body>
+</html>

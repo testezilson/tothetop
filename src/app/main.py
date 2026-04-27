@@ -75,12 +75,17 @@ try:
         import app.ui.pages.lol_win_prob_unified
     except ImportError:
         pass
+    try:
+        import app.ui.pages.lol_prebets_hud
+    except ImportError:
+        pass
 except ImportError as e:
     # Em desenvolvimento, isso pode falhar se o path não estiver configurado
     # Mas no executável PyInstaller, deve funcionar
     print(f"Aviso: Erro ao importar módulos core: {e}")
 
 from app.ui.main_window import MainWindow
+from app.ui.styles import apply_fusion
 
 
 def main():
@@ -88,7 +93,8 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("LoL Oracle ML")
     app.setOrganizationName("LoL Oracle")
-    
+    apply_fusion(app)
+
     # Criar e mostrar janela principal
     window = MainWindow()
     window.show()

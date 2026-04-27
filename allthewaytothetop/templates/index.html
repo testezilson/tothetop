@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LoL Oracle ML</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h1 class="title">LoL Oracle ML</h1>
+
+<div class="container page-wrap">
+    <div class="top-menu">
+        <button type="button" id="btnLolTeams" class="secondary" onclick="showPage('lolTeamsPage')">Pré-bets Times LoL</button>
+        <button type="button" id="btnLolPlayers" class="secondary" onclick="showPage('lolPlayersPage')">Pré-bets Players LoL</button>
+        <button type="button" id="btnLolDraft" class="secondary" onclick="showPage('lolDraftPage')">Draft LoL</button>
+        <button type="button" id="btnDotaPrebets" class="secondary" onclick="showPage('dotaPrebetsPage')">Pré-bets Dota</button>
+        <button type="button" id="btnDotaDraft" class="secondary" onclick="showPage('dotaDraftPage')">Draft Dota</button>
+        <button type="button" id="btnFootballPrebets" class="secondary" onclick="showPage('footballPrebetsPage')">Pré-bets Futebol</button>
+        <button type="button" id="btnUpdateDatabases" class="secondary" onclick="showPage('updateDatabasesPage')">Atualizar Bancos</button>
+    </div>
+
+    <section id="lolTeamsPage" class="page">
+    <section class="params-panel">
+        <h2>Seleção e parâmetros</h2>
+
+        <div class="params-grid">
+            <label for="team1">Time 1</label>
+            <div class="autocomplete">
+                <input id="team1" value="Fnatic" autocomplete="off">
+                <div id="team1Suggestions" class="suggestions"></div>
+            </div>
+
+            <label for="team2">Time 2</label>
+            <div class="autocomplete">
+                <input id="team2" value="Shifters" autocomplete="off">
+                <div id="team2Suggestions" class="suggestions"></div>
+            </div>
+
+            <label for="stat">Estatística</label>
+            <select id="stat">
+                <option value="kills">Kills</option>
+                <option value="deaths">Deaths</option>
+                <option value="assists">Assists</option>
+                <option value="towers">Torres</option>
+                <option value="dragons">Dragões</option>
+                <option value="barons">Barões</option>
+                <option value="heralds">Arautos</option>
+                <option value="inhibitors">Inibidores</option>
+                <option value="first blood">First Blood</option>
+                <option value="first tower">First Tower</option>
+                <option value="first dragon">First Dragon</option>
+                <option value="first herald">First Herald</option>
+                <option value="gamelength">Duração do jogo</option>
+            </select>
+
+            <label for="limitGames">Jogos recentes</label>
+            <input id="limitGames" value="10" inputmode="numeric">
+
+            <label for="line">Linha (mercado)</label>
+            <input id="line" value="25.5">
+
+            <label for="h2hMonths">Meses H2H</label>
+            <input id="h2hMonths" value="3" inputmode="numeric">
+
+            <label for="oddOver">Odd over</label>
+            <input id="oddOver" value="1.90">
+
+            <label for="oddUnder">Odd under</label>
+            <input id="oddUnder" value="1.90">
+
+            <div class="checkbox-row">
+                <input id="useH2h" type="checkbox">
+                <span>Incluir peso H2H</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="button" onclick="calcular()">Analisar</button>
+            <button type="button" class="secondary" onclick="limparResultados()">Limpar resultados</button>
+        </div>
+    </section>
+
+    <div id="statusBox" class="status-box hidden"></div>
+
+    <section id="recommendationBlock" class="recommendation-block">
+        <div class="label">Recomendação</div>
+        <div id="recommendation" class="recommendation">--</div>
+
+        <div class="summary-cards">
+            <div class="summary-card green">
+                <h3>Prob Over</h3>
+                <p id="probOver">--</p>
+            </div>
+            <div class="summary-card red">
+                <h3>Prob Under</h3>
+                <p id="probUnder">--</p>
+            </div>
+            <div class="summary-card green">
+                <h3>EV Over</h3>
+                <p id="evOver">--</p>
+            </div>
+            <div class="summary-card red">
+                <h3>EV Under</h3>
+                <p id="evUnder">--</p>
+            </div>
+            <div class="summary-card">
+                <h3>Odd Justa<br>Over</h3>
+                <p id="fairOver">--</p>
+            </div>
+            <div class="summary-card">
+                <h3>Odd Justa<br>Under</h3>
+                <p id="fairUnder">--</p>
+            </div>
+        </div>
+
+        <div id="evLines" class="ev-lines"></div>
+    </section>
+
+    <section class="matchup-dashboard dashboard">
+        <div class="team-section team-green">
+            <div class="team-header" id="t1Header">Time 1</div>
+
+            <div class="metric-row">
+                <div class="metric-card">
+                    <span>TOTAL OVER</span>
+                    <strong id="t1TotalPct">--</strong>
+                    <small id="t1TotalMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>VITÓRIAS OVER</span>
+                    <strong id="t1WinsPct">--</strong>
+                    <small id="t1WinsMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>DERROTAS OVER</span>
+                    <strong id="t1LossesPct">--</strong>
+                    <small id="t1LossesMeta">--</small>
+                </div>
+            </div>
+
+            <div class="metric-row under-row">
+                <div class="metric-card">
+                    <span>TOTAL UNDER</span>
+                    <strong id="t1TotalUnderPct">--</strong>
+                    <small id="t1TotalUnderMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>VITÓRIAS UNDER</span>
+                    <strong id="t1WinsUnderPct">--</strong>
+                    <small id="t1WinsUnderMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>DERROTAS UNDER</span>
+                    <strong id="t1LossesUnderPct">--</strong>
+                    <small id="t1LossesUnderMeta">--</small>
+                </div>
+            </div>
+
+            <div id="team1Recent" class="recent-card"></div>
+            <div class="wl-grid">
+                <div class="wl-table" id="team1WinsTable"></div>
+                <div class="wl-table" id="team1LossesTable"></div>
+            </div>
+        </div>
+
+        <div class="team-section team-yellow">
+            <div class="team-header" id="t2Header">Time 2</div>
+
+            <div class="metric-row">
+                <div class="metric-card">
+                    <span>TOTAL OVER</span>
+                    <strong id="t2TotalPct">--</strong>
+                    <small id="t2TotalMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>VITÓRIAS OVER</span>
+                    <strong id="t2WinsPct">--</strong>
+                    <small id="t2WinsMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>DERROTAS OVER</span>
+                    <strong id="t2LossesPct">--</strong>
+                    <small id="t2LossesMeta">--</small>
+                </div>
+            </div>
+
+            <div class="metric-row under-row">
+                <div class="metric-card">
+                    <span>TOTAL UNDER</span>
+                    <strong id="t2TotalUnderPct">--</strong>
+                    <small id="t2TotalUnderMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>VITÓRIAS UNDER</span>
+                    <strong id="t2WinsUnderPct">--</strong>
+                    <small id="t2WinsUnderMeta">--</small>
+                </div>
+                <div class="metric-card">
+                    <span>DERROTAS UNDER</span>
+                    <strong id="t2LossesUnderPct">--</strong>
+                    <small id="t2LossesUnderMeta">--</small>
+                </div>
+            </div>
+
+            <div id="team2Recent" class="recent-card"></div>
+            <div class="wl-grid">
+                <div class="wl-table" id="team2WinsTable"></div>
+                <div class="wl-table" id="team2LossesTable"></div>
+            </div>
+        </div>
+    </section>
+    </section>
+
+    <section id="lolPlayersPage" class="page hidden">
+      <h1>Pré-bets Players LoL</h1>
+
+      <div class="params-panel">
+        <h2>Seleção de Player</h2>
+
+        <div class="params-grid player-top-grid">
+          <label>Player</label>
+          <div class="player-search-row">
+            <div class="autocomplete player-autocomplete">
+              <input id="playerName" value="caps" autocomplete="off">
+              <div id="playerSuggestions" class="suggestions"></div>
+            </div>
+            <button type="button" class="player-search-btn" onclick="calcularPlayerPrebet()">Buscar</button>
+          </div>
+
+          <label>Estatística</label>
+          <select id="playerStat">
+            <option value="kills">Kills</option>
+            <option value="deaths">Deaths</option>
+            <option value="assists">Assists</option>
+            <option value="cs">CS</option>
+          </select>
+
+        </div>
+      </div>
+
+      <div class="params-panel">
+        <h2>Dados da Aposta</h2>
+
+        <div class="params-grid player-bet-grid">
+          <label>Linha:</label>
+          <input id="playerLine" value="5.5">
+
+          <label>Odd Over:</label>
+          <input id="playerOddOver" value="1.90">
+
+          <label>Odd Under:</label>
+          <input id="playerOddUnder" value="1.90">
+
+          <label>Jogos recentes:</label>
+          <input id="playerLimitGames" value="10">
+        </div>
+
+        <div class="actions">
+          <button type="button" onclick="calcularPlayerPrebet()">Calcular</button>
+        </div>
+      </div>
+
+      <div id="playerStatusBox" class="status-box hidden"></div>
+
+      <section class="recommendation-block">
+        <div class="label">Recomendação</div>
+        <div id="playerRecommendation" class="recommendation">--</div>
+
+        <div class="summary-cards">
+          <div class="summary-card"><h3>Média</h3><p id="playerMean">--</p></div>
+          <div class="summary-card"><h3>Mediana</h3><p id="playerMedian">--</p></div>
+          <div class="summary-card"><h3>Desvio</h3><p id="playerStd">--</p></div>
+          <div class="summary-card green"><h3>Prob Over</h3><p id="playerProbOver">--</p></div>
+          <div class="summary-card red"><h3>Prob Under</h3><p id="playerProbUnder">--</p></div>
+          <div class="summary-card green"><h3>EV Over</h3><p id="playerEvOver">--</p></div>
+          <div class="summary-card red"><h3>EV Under</h3><p id="playerEvUnder">--</p></div>
+          <div class="summary-card"><h3>Fair Over</h3><p id="playerFairOver">--</p></div>
+          <div class="summary-card"><h3>Fair Under</h3><p id="playerFairUnder">--</p></div>
+        </div>
+        <div id="playerEvLines" class="ev-lines"></div>
+      </section>
+
+      <section class="team-panel">
+        <h2>Últimos jogos</h2>
+        <div id="playerLastValues" class="player-last-list"></div>
+      </section>
+    </section>
+
+    <section id="lolDraftPage" class="page hidden">
+      <h1>LoL - Draft Live</h1>
+
+      <div class="params-panel">
+        <h2>Configuração do Draft</h2>
+
+        <div class="params-grid">
+          <label>Liga</label>
+          <input id="draftLeague" value="MAJOR">
+
+          <label>Threshold</label>
+          <input id="draftThreshold" value="0.55">
+        </div>
+      </div>
+
+      <div class="draft-grid">
+        <div class="draft-team">
+          <h2>Time 1 (Blue Side)</h2>
+          <input id="bluePick1" placeholder="Pick 1">
+          <input id="bluePick2" placeholder="Pick 2">
+          <input id="bluePick3" placeholder="Pick 3">
+          <input id="bluePick4" placeholder="Pick 4">
+          <input id="bluePick5" placeholder="Pick 5">
+        </div>
+
+        <div class="draft-team">
+          <h2>Time 2 (Red Side)</h2>
+          <input id="redPick1" placeholder="Pick 1">
+          <input id="redPick2" placeholder="Pick 2">
+          <input id="redPick3" placeholder="Pick 3">
+          <input id="redPick4" placeholder="Pick 4">
+          <input id="redPick5" placeholder="Pick 5">
+        </div>
+      </div>
+
+      <button class="full-btn" onclick="analisarDraft()">Analisar Draft</button>
+
+      <div id="draftStatusBox" class="status-box hidden"></div>
+
+      <div class="draft-results">
+        <div class="draft-table-wrap">
+          <table class="draft-table">
+            <thead>
+              <tr>
+                <th>Linha</th>
+                <th>Prob(UNDER)</th>
+                <th>Prob(OVER)</th>
+                <th>Recomendação</th>
+              </tr>
+            </thead>
+            <tbody id="draftRows"></tbody>
+          </table>
+        </div>
+
+        <pre id="draftDetails" class="draft-details">Preencha o draft e clique em Analisar.</pre>
+      </div>
+    </section>
+
+    <section id="dotaPrebetsPage" class="page hidden">
+      <h1>Pré-bets Dota</h1>
+
+      <div class="dota-prebets-page">
+        <div class="dota-grid">
+          <fieldset>
+            <legend>Seleção de Jogo</legend>
+
+            <label for="dotaTeam1">Time 1:</label>
+            <input id="dotaTeam1" value="SOUTH AMERICAN REJECTS">
+
+            <label for="dotaTeam2">Time 2:</label>
+            <input id="dotaTeam2" value="HEROIC">
+
+            <label for="dotaStat">Estatística:</label>
+            <select id="dotaStat" onchange="syncDotaStatInputs()">
+              <option value="first_tower">first_tower</option>
+              <option value="first_blood">first_blood</option>
+              <option value="first_10_kills">first_10_kills</option>
+              <option value="first_roshan">first_roshan</option>
+              <option value="kills">kills</option>
+              <option value="torres">torres</option>
+              <option value="barracks">barracks</option>
+              <option value="roshans">roshans</option>
+              <option value="tempo">tempo</option>
+            </select>
+          </fieldset>
+
+          <fieldset>
+            <legend>Dados da Aposta</legend>
+
+            <label for="dotaLine">Linha:</label>
+            <input id="dotaLine" type="number" step="0.5" value="0.5">
+
+            <label id="dotaOdd1Label" for="dotaOddTeam1">Odd (Time 1):</label>
+            <input id="dotaOddTeam1" type="number" step="0.01" value="1.83">
+
+            <label id="dotaOdd2Label" for="dotaOddTeam2">Odd (Time 2):</label>
+            <input id="dotaOddTeam2" type="number" step="0.01" value="1.83">
+
+            <label for="dotaLimitGames">Jogos recentes:</label>
+            <input id="dotaLimitGames" type="number" value="10">
+          </fieldset>
+
+          <fieldset>
+            <legend>Filtros H2H</legend>
+
+            <label for="dotaH2hMonths">Meses H2H:</label>
+            <input id="dotaH2hMonths" type="number" value="3">
+
+            <label class="checkbox-row dota-checkbox-row" for="dotaUseH2h">
+              Incluir peso H2H:
+              <input id="dotaUseH2h" type="checkbox">
+            </label>
+          </fieldset>
+        </div>
+
+        <button class="calculate-btn" onclick="calcularDotaPrebet()" id="dotaCalculateBtn">Calcular</button>
+
+        <div id="dotaStatusBox" class="status-box hidden"></div>
+
+        <pre id="dotaPrebetResult" class="dota-result">Preencha os dados e clique em Calcular.</pre>
+      </div>
+    </section>
+
+    <section id="dotaDraftPage" class="page hidden">
+      <h1>Draft Dota</h1>
+
+      <div class="dota-draft-page">
+        <div class="dota-draft-grid">
+          <fieldset>
+            <legend>Configuração</legend>
+
+            <input id="dotaDraftRadiantTeam" placeholder="Radiant Team" value="Team Liquid">
+            <input id="dotaDraftDireTeam" placeholder="Dire Team" value="BetBoom Team">
+            <input id="dotaDraftLimitGames" type="number" value="15" min="15">
+          </fieldset>
+
+          <fieldset>
+            <legend>Draft Radiant</legend>
+            <input id="dotaRadiantPick1" placeholder="Hero 1" value="Medusa">
+            <input id="dotaRadiantPick2" placeholder="Hero 2" value="Night Stalker">
+            <input id="dotaRadiantPick3" placeholder="Hero 3" value="Tiny">
+            <input id="dotaRadiantPick4" placeholder="Hero 4" value="Rubick">
+            <input id="dotaRadiantPick5" placeholder="Hero 5" value="Clockwerk">
+          </fieldset>
+
+          <fieldset>
+            <legend>Draft Dire</legend>
+            <input id="dotaDirePick1" placeholder="Hero 1" value="Windranger">
+            <input id="dotaDirePick2" placeholder="Hero 2" value="Puck">
+            <input id="dotaDirePick3" placeholder="Hero 3" value="Beastmaster">
+            <input id="dotaDirePick4" placeholder="Hero 4" value="Hoodwink">
+            <input id="dotaDirePick5" placeholder="Hero 5" value="Venomancer">
+          </fieldset>
+        </div>
+
+        <button class="calculate-btn" onclick="analisarDotaDraft()" id="dotaDraftAnalyzeBtn">Analisar Draft</button>
+
+        <div id="dotaDraftStatusBox" class="status-box hidden"></div>
+
+        <div id="dotaDraftResult" class="dota-draft-result hidden">
+          <div class="dota-draft-table-wrap">
+            <table class="dota-draft-table">
+              <thead>
+                <tr>
+                  <th>Linha</th>
+                  <th>Under</th>
+                  <th>Over</th>
+                  <th>Rec</th>
+                  <th>Conf</th>
+                </tr>
+              </thead>
+              <tbody id="dotaDraftRows"></tbody>
+            </table>
+          </div>
+          <pre id="dotaDraftText" class="dota-draft-text">Preencha o draft e clique em Analisar.</pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="footballPrebetsPage" class="page hidden">
+      <h1>Pré-bets Futebol</h1>
+
+      <div class="football-prebets-page">
+        <fieldset class="football-api-key">
+          <legend>Chave API</legend>
+          <input id="footballApiKeyInfo" value="Usar FOOTBALL_API_KEY ou data/football_api_key.txt no backend" disabled>
+        </fieldset>
+
+        <div class="football-tabs">
+          <button type="button" class="football-tab active">Equipas</button>
+          <button type="button" class="football-tab disabled" disabled>Jogadores</button>
+        </div>
+
+        <div class="football-grid">
+          <fieldset>
+            <legend>Time 1</legend>
+            <label for="footballTeam1Name">Nome</label>
+            <input id="footballTeam1Name" value="Real Betis">
+            <label for="footballTeam1Id">ID</label>
+            <input id="footballTeam1Id" type="number" value="543">
+          </fieldset>
+
+          <fieldset>
+            <legend>Time 2</legend>
+            <label for="footballTeam2Name">Nome</label>
+            <input id="footballTeam2Name" value="Real Madrid">
+            <label for="footballTeam2Id">ID</label>
+            <input id="footballTeam2Id" type="number" value="541">
+          </fieldset>
+
+          <fieldset>
+            <legend>Mercado</legend>
+            <label for="footballStat">Mercado</label>
+            <select id="footballStat">
+              <option value="corners_1h">Escanteios — 1.º tempo (equipa)</option>
+              <option value="corners_2h">Escanteios — 2.º tempo (equipa)</option>
+              <option value="corners">Escanteios — jogo completo (equipa)</option>
+              <option value="chutes_1h">Chutes (totais) — 1.º tempo (equipa)</option>
+              <option value="chutes_2h">Chutes (totais) — 2.º tempo (equipa)</option>
+              <option value="chutes">Chutes / remates totais — jogo completo (equipa)</option>
+              <option value="finalizacoes_1h">Finalizacoes — 1.º tempo (equipa)</option>
+              <option value="finalizacoes_2h">Finalizacoes — 2.º tempo (equipa)</option>
+              <option value="finalizacoes">Finalizacoes — jogo completo (remates totais, API)</option>
+              <option value="yellow_cards">Cartões amarelos (equipa)</option>
+              <option value="red_cards">Cartões vermelhos (equipa)</option>
+              <option value="total_cards" selected>Total cartões (partida)</option>
+              <option value="shots_on_goal">Chutes ao gol (equipa)</option>
+            </select>
+          </fieldset>
+
+          <fieldset>
+            <legend>Dados da aposta</legend>
+            <label for="footballLine">Linha</label>
+            <input id="footballLine" type="number" step="0.5" value="4.5">
+            <label for="footballOddOver">Odd Over</label>
+            <input id="footballOddOver" type="number" step="0.01" value="1.83">
+            <label for="footballOddUnder">Odd Under</label>
+            <input id="footballOddUnder" type="number" step="0.01" value="1.83">
+            <label for="footballLimitGames">Jogos recentes</label>
+            <input id="footballLimitGames" type="number" value="10">
+          </fieldset>
+
+          <fieldset>
+            <legend>H2H</legend>
+            <label for="footballH2hMonths">Meses H2H</label>
+            <input id="footballH2hMonths" type="number" value="6">
+            <label class="checkbox-row football-checkbox-row" for="footballUseH2h">
+              Incluir H2H
+              <input id="footballUseH2h" type="checkbox">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Juiz</legend>
+            <label for="footballRefereeName">Juiz</label>
+            <input id="footballRefereeName" value="C. Soto Grado">
+            <label for="footballRefereeSampleGames">Jogos do juiz</label>
+            <input id="footballRefereeSampleGames" type="number" value="10">
+          </fieldset>
+        </div>
+
+        <button class="calculate-btn" onclick="calcularFootballTeamPrebet()" id="footballTeamCalculateBtn">Calcular (equipas)</button>
+
+        <div id="footballStatusBox" class="status-box hidden"></div>
+
+        <pre id="footballTeamResult" class="football-result">Preencha os dados e clique em Calcular.</pre>
+      </div>
+    </section>
+
+    <section id="updateDatabasesPage" class="page hidden">
+      <h1>Atualização de Bancos de Dados</h1>
+
+      <div class="update-db-page">
+        <div class="update-db-grid">
+          <fieldset>
+            <legend>LoL - Pré-bets</legend>
+            <p>Atualiza a base usada pelos cálculos de pré-bets de times e players LoL.</p>
+            <button type="button" class="calculate-btn" onclick="runUpdateAction('lol-prebets')">Atualizar Banco LoL Pré-bets</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>LoL - Draft Live e Comparar Composições</legend>
+            <p>Atualiza os dados do Draft Live/Compare a partir de CSV. Na web, o seletor do desktop vira upload.</p>
+            <label for="lolDraftCsv">Arquivo CSV atual</label>
+            <input id="lolDraftCsv" type="file" accept=".csv">
+            <button type="button" class="calculate-btn" onclick="runUpdateAction('lol-draft')">Atualizar Draft/Compare LoL</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>Dota - Pré-bets Secundárias</legend>
+            <p>Atualiza o banco CyberScore usado pelas pré-bets secundárias de Dota.</p>
+            <label for="updateDotaTeamId">Team ID</label>
+            <input id="updateDotaTeamId" placeholder="Ex.: 12345">
+            <button type="button" class="calculate-btn" onclick="runUpdateAction('dota-prebets')">Atualizar Banco Dota Pré-bets</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>Dota - Draft Live</legend>
+            <p>Atualiza dados de Draft Live via OpenDota. A execução real será plugada em fase posterior.</p>
+            <label for="updateDotaLeagueId">League ID OpenDota</label>
+            <input id="updateDotaLeagueId" placeholder="Ex.: 16935">
+            <label for="updateDotaLeagueName">League Name opcional</label>
+            <input id="updateDotaLeagueName" placeholder="Ex.: DreamLeague">
+            <label for="updateOpenDotaKey">API Key OpenDota</label>
+            <input id="updateOpenDotaKey" type="password" placeholder="Não será exibida no log">
+            <button type="button" class="calculate-btn" onclick="runUpdateAction('dota-draft-live')">Atualizar Banco Dota Draft Live</button>
+          </fieldset>
+
+          <fieldset class="update-log-panel">
+            <legend>Log de Atualização</legend>
+            <pre id="updateDatabaseLog" class="update-db-log">Nenhuma atualização executada nesta sessão.</pre>
+          </fieldset>
+        </div>
+      </div>
+    </section>
+
+</div>
+
+<script>
+function showPage(pageId) {
+  const items = [
+    ["lolTeamsPage", "btnLolTeams"],
+    ["lolPlayersPage", "btnLolPlayers"],
+    ["lolDraftPage", "btnLolDraft"],
+    ["dotaPrebetsPage", "btnDotaPrebets"],
+    ["dotaDraftPage", "btnDotaDraft"],
+    ["footballPrebetsPage", "btnFootballPrebets"],
+    ["updateDatabasesPage", "btnUpdateDatabases"],
+  ];
+  const target = items.some(([id]) => id === pageId) ? pageId : "lolTeamsPage";
+  for (const [id, btnId] of items) {
+    const page = document.getElementById(id);
+    const btn = document.getElementById(btnId);
+    if (page) page.classList.toggle("hidden", id !== target);
+    if (btn) btn.classList.toggle("secondary", id !== target);
+  }
+}
+
+function showStatus(message, type = "info") {
+  const box = document.getElementById("statusBox");
+  if (!box) return;
+  box.className = `status-box ${type}`;
+  box.innerText = message;
+}
+
+function clearStatus() {
+  const box = document.getElementById("statusBox");
+  if (!box) return;
+  box.className = "status-box hidden";
+  box.innerText = "";
+}
+
+function showPlayerStatus(message, type = "info") {
+  const box = document.getElementById("playerStatusBox");
+  if (!box) return;
+  box.className = `status-box ${type}`;
+  box.innerText = message;
+}
+
+function showDraftStatus(message, type = "info") {
+  const box = document.getElementById("draftStatusBox");
+  if (!box) return;
+  box.className = `status-box ${type}`;
+  box.innerText = message;
+}
+
+function showDotaStatus(message, type = "info") {
+  const box = document.getElementById("dotaStatusBox");
+  if (!box) return;
+  box.className = `status-box ${type}`;
+  box.innerText = message;
+}
+
+function showDotaDraftStatus(message, type = "info") {
+  const box = document.getElementById("dotaDraftStatusBox");
+  if (!box) return;
+  box.className = `status-box ${type}`;
+  box.innerText = message;
+}
+
+function showFootballStatus(message, type = "info") {
+  const box = document.getElementById("footballStatusBox");
+  if (!box) return;
+  box.className = `status-box ${type}`;
+  box.innerText = message;
+}
+
+function toNumberBR(value) {
+  return Number(String(value || "").replace(",", "."));
+}
+
+function detailToMessage(detail) {
+  if (detail == null) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((e) => (e && (e.msg || e.message)) || JSON.stringify(e)).join(" ");
+  }
+  return String(detail);
+}
+
+function fmtPct(v) {
+  if (v === null || v === undefined) return "--";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "--";
+  return n.toFixed(1) + "%";
+}
+
+function fmtSignedPct(v) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return "--";
+  const n = Number(v);
+  return (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
+}
+
+function fmtOdd(v) {
+  if (v === null || v === undefined || v === "" || (typeof v === "number" && !Number.isFinite(v))) return "--";
+  const n = Number(v);
+  if (Number.isNaN(n) || !Number.isFinite(n)) return "--";
+  return n.toFixed(3);
+}
+
+function fmtUnitEv(v) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return "--";
+  const n = Number(v) / 100;
+  return (n >= 0 ? "+" : "") + n.toFixed(2) + "u";
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value ?? "--";
+}
+
+const HUD_FIELD_IDS = [
+  "t1TotalPct", "t1TotalMeta", "t1WinsPct", "t1WinsMeta", "t1LossesPct", "t1LossesMeta",
+  "t1TotalUnderPct", "t1TotalUnderMeta", "t1WinsUnderPct", "t1WinsUnderMeta", "t1LossesUnderPct", "t1LossesUnderMeta",
+  "t2TotalPct", "t2TotalMeta", "t2WinsPct", "t2WinsMeta", "t2LossesPct", "t2LossesMeta",
+  "t2TotalUnderPct", "t2TotalUnderMeta", "t2WinsUnderPct", "t2WinsUnderMeta", "t2LossesUnderPct", "t2LossesUnderMeta"
+];
+
+const SUMMARY_FIELD_IDS = [
+  "recommendation", "probOver", "probUnder", "evOver", "evUnder", "fairOver", "fairUnder"
+];
+
+function limparResultados() {
+  clearStatus();
+  setText("t1Header", "Time 1");
+  setText("t2Header", "Time 2");
+  HUD_FIELD_IDS.forEach((id) => setText(id, "--"));
+  SUMMARY_FIELD_IDS.forEach((id) => setText(id, "--"));
+  const evLines = document.getElementById("evLines");
+  if (evLines) evLines.innerHTML = "";
+  const r1 = document.getElementById("team1Recent");
+  const r2 = document.getElementById("team2Recent");
+  if (r1) r1.innerHTML = "";
+  if (r2) r2.innerHTML = "";
+  ["team1WinsTable", "team1LossesTable", "team2WinsTable", "team2LossesTable"].forEach((id) => {
+    const t = document.getElementById(id);
+    if (t) t.innerHTML = "";
+  });
+}
+
+function recentRow(label, count, pct, avg) {
+  const numPct = Number(pct);
+  const safePct = Number.isFinite(numPct) ? Math.max(0, Math.min(100, numPct)) : 0;
+  return `
+    <div class="recent-row">
+      <div class="recent-label">${label}</div>
+      <div class="recent-count">${count || "--"}</div>
+      <div class="recent-bar"><div class="recent-fill" style="width:${safePct}%"></div></div>
+      <div class="recent-value">${fmtPct(pct)}</div>
+      <div class="recent-avg">${avg || "--"}</div>
+    </div>
+  `;
+}
+
+function wlPctClass(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n)) return "wl-pct-mid";
+  if (n >= 55) return "wl-pct-high";
+  if (n < 45) return "wl-pct-low";
+  return "wl-pct-mid";
+}
+
+function rowSummary(label, s) {
+  if (!s || s.games == null || !s.games) {
+    return `
+      <div class="wl-row">
+        <span>${label}</span>
+        <span>0/0</span>
+        <span>--</span>
+        <span>--</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="wl-row">
+      <span>${label}</span>
+      <span>${s.over}/${s.games}</span>
+      <span>${fmtPct(s.over_pct)}</span>
+      <span>${s.avg_display != null && s.avg_display !== "" ? s.avg_display : (s.avg != null && s.avg !== "" ? s.avg : "--")}</span>
+    </div>
+  `;
+}
+
+function renderWLTable(id, title, block) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const recent = (block && block.recent) || {};
+
+  el.innerHTML = `
+    <div class="wl-title">${title}</div>
+    <div class="wl-head">
+      <span>Amostra</span>
+      <span>Jogos</span>
+      <span>Over %</span>
+      <span>Avg</span>
+    </div>
+
+    ${rowSummary("Total", block)}
+    ${rowSummary("Last 15", recent.last_15)}
+    ${rowSummary("Last 10", recent.last_10)}
+    ${rowSummary("Last 5", recent.last_5)}
+  `;
+}
+
+/** Uma linha de ``breakdown`` (total / last_15 / …): over, under, %, média. */
+function brRowLine(label, block, isOverBar) {
+  if (!block || block.games == null) {
+    return `<tr><td class="wl-amostra" colspan="8">${label}: —</td></tr>`;
+  }
+  const o = block.over;
+  const u = block.under;
+  const g = block.games;
+  const op = block.over_pct;
+  const up = block.under_pct;
+  const barPct = isOverBar ? op : up;
+  const w = Math.max(0, Math.min(100, Number(barPct) || 0));
+  const ad = block.avg_display != null ? block.avg_display : (block.avg != null ? String(Number(block.avg).toFixed(1)) : "—");
+  return `<tr>
+    <td class="wl-amostra">${label}</td>
+    <td class="wl-jogos mono">${g}</td>
+    <td class="wl-num mono">${o}</td>
+    <td class="wl-num mono">${u}</td>
+    <td class="wl-ov ${wlPctClass(op)} mono">${fmtPct(op)}</td>
+    <td class="wl-ud mono">${fmtPct(up)}</td>
+    <td class="wl-bar"><div class="wl-bar-bg"><div class="wl-bar-fill" style="width:${w}%"></div></div></td>
+    <td class="wl-avg mono">${ad}</td>
+  </tr>`;
+}
+
+/** Uma linha: ``breakdown.total`` (últimos N misturados) */
+function breakdownTotalTableRow(total, periodGames) {
+  if (!total) {
+    return "";
+  }
+  return `<div class="bd-total-block">
+    <div class="wl-table-title">Total · últimos ${periodGames ?? "N"}</div>
+    <table class="wl-table wl-table-dense">
+      <thead><tr>
+        <th>Amostra</th>
+        <th>Jogos</th>
+        <th>Over</th>
+        <th>Under</th>
+        <th>O %</th>
+        <th>U %</th>
+        <th class="wl-bar-h"></th>
+        <th>Avg</th>
+      </tr></thead>
+      <tbody>${brRowLine("Recorte", total, true)}</tbody>
+    </table>
+  </div>`;
+}
+
+/**
+ * Usa ``data.team1_breakdown`` / ``team2_breakdown``:
+ * .total, .wins, .losses, .wins.recent.last_15, .wins.recent.last_10, .wins.recent.last_5, e o mesmo em losses
+ */
+function breakdownPanelHtml(bd, periodGames) {
+  if (!bd) {
+    return `<p class="wl-hint">Sem <code>team_breakdown</code> no JSON (mercado first, ou histórico indisponível).</p>`;
+  }
+  const lineTag = (bd.line != null && Number.isFinite(Number(bd.line)))
+    ? `<p class="bd-line">Linha do mercado: <strong>${bd.line}</strong></p>`
+    : "";
+
+  const totalBlock = breakdownTotalTableRow(bd.total, periodGames || bd.period_games);
+  if (bd.has_wl === false) {
+    return `${lineTag}${totalBlock}
+    <p class="wl-hint">Resultado (W/L) indisponível no histórico do Oracle — tabelas Vitórias/Derrotas e recortes last_15/10/5 por resultado vêm vazias no backend.</p>`;
+  }
+  return `${lineTag}${totalBlock}`;
+}
+
+function hudWinLossPct(summary, key, fallbackKey) {
+  if (summary == null) return "--";
+  if (Object.prototype.hasOwnProperty.call(summary, key) && summary[key] === null) return "--";
+  if (Object.prototype.hasOwnProperty.call(summary, key) && summary[key] != null) return fmtPct(summary[key]);
+  return fmtPct(summary[fallbackKey]);
+}
+
+function renderHudTeam(prefix, teamName, summary, breakdown, recentId, isFirst, periodGames) {
+  setText(`${prefix}Header`, teamName);
+
+  const totalBlock = breakdown?.total || summary;
+  const winsBlock = breakdown?.wins || null;
+  const lossesBlock = breakdown?.losses || null;
+  const ttot = !isFirst && breakdown && breakdown.total;
+  if (ttot) {
+    setText(`${prefix}TotalPct`, fmtPct(totalBlock?.over_pct));
+    setText(`${prefix}TotalMeta`, `${totalBlock?.over ?? "--"}/${totalBlock?.games ?? "--"} over · avg ${totalBlock?.avg_display ?? totalBlock?.avg ?? "--"}`);
+  } else {
+    setText(`${prefix}TotalPct`, fmtPct(totalBlock?.over_pct));
+    setText(`${prefix}TotalMeta`, `${totalBlock?.over ?? "--"}/${totalBlock?.games ?? "--"} over · avg ${totalBlock?.avg_display ?? totalBlock?.avg ?? "--"}`);
+  }
+
+  if (isFirst) {
+    setText(`${prefix}WinsPct`, "--");
+    setText(`${prefix}LossesPct`, "--");
+    setText(`${prefix}WinsMeta`, "— (mercado first objective)");
+    setText(`${prefix}LossesMeta`, "— (mercado first objective)");
+  } else if (ttot && breakdown.wins) {
+    const w = winsBlock;
+    const l_ = lossesBlock;
+    setText(`${prefix}WinsPct`, w.games ? fmtPct(w.over_pct) : "--");
+    setText(`${prefix}LossesPct`, l_.games ? fmtPct(l_.over_pct) : "--");
+    setText(`${prefix}WinsMeta`, summary?.wins_meta ?? (w.games
+      ? `Over ${w.over}/${w.games} · Under ${w.under}/${w.games} · média ${w.avg_display ?? "—"}`
+      : "—"));
+    setText(`${prefix}LossesMeta`, summary?.losses_meta ?? (l_.games
+      ? `Over ${l_.over}/${l_.games} · Under ${l_.under}/${l_.games} · média ${l_.avg_display ?? "—"}`
+      : "—"));
+  } else {
+    setText(`${prefix}WinsPct`, hudWinLossPct(summary, "wins_pct", "over_pct"));
+    setText(`${prefix}LossesPct`, hudWinLossPct(summary, "losses_pct", "under_pct"));
+    setText(`${prefix}WinsMeta`, summary?.wins_meta ?? "—");
+    setText(`${prefix}LossesMeta`, summary?.losses_meta ?? "—");
+  }
+
+  setText(`${prefix}TotalUnderPct`, fmtPct(totalBlock?.under_pct));
+  setText(`${prefix}TotalUnderMeta`, `${totalBlock?.under ?? "--"}/${totalBlock?.games ?? "--"} under · avg ${totalBlock?.avg_display || totalBlock?.avg || "--"}`);
+
+  setText(`${prefix}WinsUnderPct`, fmtPct(winsBlock?.under_pct));
+  setText(`${prefix}WinsUnderMeta`, `${winsBlock?.under ?? "--"}/${winsBlock?.games ?? "--"} under · avg ${winsBlock?.avg_display || winsBlock?.avg || "--"}`);
+
+  setText(`${prefix}LossesUnderPct`, fmtPct(lossesBlock?.under_pct));
+  setText(`${prefix}LossesUnderMeta`, `${lossesBlock?.under ?? "--"}/${lossesBlock?.games ?? "--"} under · avg ${lossesBlock?.avg_display || lossesBlock?.avg || "--"}`);
+
+  const recent = summary?.recent || (summary
+    ? [
+        { label: "Últimos 15", count: `${summary.over ?? "—"}/${summary.games ?? "—"}`, pct: summary.over_pct, avg: summary.avg },
+        { label: "Últimos 10", count: `${summary.over ?? "—"}/${summary.games ?? "—"}`, pct: summary.over_pct, avg: summary.avg },
+        { label: "Últimos 5", count: `${summary.over ?? "—"}/${Math.min(5, summary.games || 5)}`, pct: summary.over_pct, avg: summary.avg },
+      ]
+    : []);
+
+  const recHint = ttot && breakdown.win_loss_record
+    ? `<p class="wl-rec">${breakdown.win_loss_record}</p>`
+    : "";
+
+  const wlHtml = isFirst ? "" : breakdownPanelHtml(breakdown, periodGames);
+
+  const el = document.getElementById(recentId);
+  if (el) {
+    const bars = recent
+      .map((r) => recentRow(r.label, r.count, r.pct, r.avg))
+      .join("");
+    el.innerHTML = `${recHint}${bars ? `<div class="recent-bars-wrap">${bars}</div>` : ""}${wlHtml}`;
+  }
+
+  const wlTeam = recentId === "team1Recent" ? "team1" : "team2";
+  if (isFirst) {
+    renderWLTable(`${wlTeam}WinsTable`, "VITÓRIAS", null);
+    renderWLTable(`${wlTeam}LossesTable`, "DERROTAS", null);
+  } else {
+    renderWLTable(`${wlTeam}WinsTable`, "VITÓRIAS", breakdown && breakdown.wins);
+    renderWLTable(`${wlTeam}LossesTable`, "DERROTAS", breakdown && breakdown.losses);
+  }
+}
+
+async function calcular() {
+  clearStatus();
+  showStatus("Calculando...", "info");
+
+  const payload = {
+    team1: document.getElementById("team1").value,
+    team2: document.getElementById("team2").value,
+    stat: document.getElementById("stat").value,
+    line: parseFloat(document.getElementById("line").value.replace(",", ".")),
+    odd_over: parseFloat(document.getElementById("oddOver").value.replace(",", ".")),
+    odd_under: parseFloat(document.getElementById("oddUnder").value.replace(",", ".")),
+    limit_games: parseInt(document.getElementById("limitGames").value, 10),
+    h2h_months: parseInt(document.getElementById("h2hMonths").value, 10),
+    use_h2h: document.getElementById("useH2h").checked
+  };
+
+  try {
+    const res = await fetch("/api/lol/prebets", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      showStatus(detailToMessage(data.detail) || data.error || "Erro ao calcular.", "error");
+      return;
+    }
+
+    document.getElementById("recommendation").innerText = data.recommendation || "--";
+
+    document.getElementById("probOver").innerText = fmtPct(data.prob_over);
+    document.getElementById("probUnder").innerText = fmtPct(data.prob_under);
+    document.getElementById("evOver").innerText = fmtSignedPct(data.ev_over);
+    document.getElementById("evUnder").innerText = fmtSignedPct(data.ev_under);
+    document.getElementById("fairOver").innerText = fmtOdd(data.fair_over);
+    document.getElementById("fairUnder").innerText = fmtOdd(data.fair_under);
+
+    const lineVal = Number.isFinite(payload.line) ? payload.line : Number(payload.line);
+    const lineStr = Number.isFinite(lineVal) ? String(lineVal) : (payload.line ?? "--");
+    document.getElementById("evLines").innerHTML = `
+  <div>Over ${lineStr}: fair ${fmtOdd(data.fair_over)} — EV = ${fmtSignedPct(data.ev_over)}</div>
+  <div>Under ${lineStr}: fair ${fmtOdd(data.fair_under)} — EV = ${fmtSignedPct(data.ev_under)}</div>
+`;
+
+    renderHudTeam("t1", data.team1 || payload.team1, data.team1_summary, data.team1_breakdown, "team1Recent", !!data.is_first_stat, payload.limit_games);
+    renderHudTeam("t2", data.team2 || payload.team2, data.team2_summary, data.team2_breakdown, "team2Recent", !!data.is_first_stat, payload.limit_games);
+
+    showStatus("Cálculo concluído.", "success");
+  } catch (err) {
+    console.error(err);
+    showStatus("Erro de conexão com a API.", "error");
+  }
+}
+
+function renderPlayerLastValues(items, lineValue) {
+  const el = document.getElementById("playerLastValues");
+  if (!el) return;
+  if (!items || !items.length) {
+    el.innerHTML = `<div class="muted">Sem jogos encontrados.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="player-list-title">📋 Últimos ${items.length} valores:</div>
+    ${items.map((x, i) => {
+      const rawSide = String(x.side || x.result || "").toUpperCase();
+      const n = Number(x.value);
+      const side = rawSide || (Number.isFinite(n) && Number.isFinite(Number(lineValue))
+        ? (n > Number(lineValue) ? "OVER" : "UNDER")
+        : "");
+      const isOver = side === "OVER";
+      const icon = isOver ? "✅" : "❌";
+      const cls = isOver ? "green" : "red";
+      const match = x.match || x.opponent || "";
+      return `
+        <div class="player-last-line">
+          <span>${i + 1}.</span>
+          <strong>${x.value}</strong>
+          <span class="${cls}">${icon}</span>
+          <b>${side}</b>
+          <span>— ${match}</span>
+        </div>
+      `;
+    }).join("")}
+  `;
+}
+
+async function calcularPlayerPrebet() {
+  showPlayerStatus("Calculando...", "info");
+  const payload = {
+    player: document.getElementById("playerName").value,
+    stat: document.getElementById("playerStat").value,
+    line: parseFloat(document.getElementById("playerLine").value.replace(",", ".")),
+    odd_over: parseFloat(document.getElementById("playerOddOver").value.replace(",", ".")),
+    odd_under: parseFloat(document.getElementById("playerOddUnder").value.replace(",", ".")),
+    limit_games: parseInt(document.getElementById("playerLimitGames").value, 10),
+  };
+  try {
+    const res = await fetch("/api/lol/player-prebets", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showPlayerStatus(data.detail || "Erro ao calcular player.", "error");
+      return;
+    }
+    setText("playerRecommendation", data.recommendation || "--");
+    setText("playerMean", data.mean ?? "--");
+    setText("playerMedian", data.median ?? "--");
+    setText("playerStd", data.std ?? "--");
+    setText("playerProbOver", fmtPct(data.prob_over));
+    setText("playerProbUnder", fmtPct(data.prob_under));
+    setText("playerEvOver", fmtSignedPct(data.ev_over));
+    setText("playerEvUnder", fmtSignedPct(data.ev_under));
+    setText("playerFairOver", fmtOdd(data.fair_over));
+    setText("playerFairUnder", fmtOdd(data.fair_under));
+    const line = data.line ?? payload.line;
+    const playerEvLines = document.getElementById("playerEvLines");
+    if (playerEvLines) {
+      playerEvLines.innerHTML = `
+        <div>Over ${line}: EV = ${fmtUnitEv(data.ev_over)} (${fmtSignedPct(data.ev_over)}) | Fair = ${fmtOdd(data.fair_over)}</div>
+        <div>Under ${line}: EV = ${fmtUnitEv(data.ev_under)} (${fmtSignedPct(data.ev_under)}) | Fair = ${fmtOdd(data.fair_under)}</div>
+      `;
+    }
+    renderPlayerLastValues(data.last_values, line);
+    showPlayerStatus("Cálculo concluído.", "success");
+  } catch (err) {
+    showPlayerStatus("Erro de conexão.", "error");
+  }
+}
+
+function getDraftPicks(prefix) {
+  return [1,2,3,4,5]
+    .map(i => document.getElementById(`${prefix}Pick${i}`).value.trim())
+    .filter(Boolean);
+}
+
+async function analisarDraft() {
+  showDraftStatus("Analisando draft...", "info");
+
+  const payload = {
+    league: document.getElementById("draftLeague").value,
+    threshold: parseFloat(document.getElementById("draftThreshold").value.replace(",", ".")),
+    team1_picks: getDraftPicks("blue"),
+    team2_picks: getDraftPicks("red")
+  };
+
+  try {
+    const res = await fetch("/api/lol/draft", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const box = document.getElementById("draftStatusBox");
+      if (box) {
+        box.className = "status-box error";
+        box.innerText = data.detail || "Erro ao analisar draft.";
+      }
+      return;
+    }
+
+    const rowsEl = document.getElementById("draftRows");
+    if (rowsEl) {
+      rowsEl.innerHTML = (data.rows || []).map(r => `
+        <tr>
+          <td>${r.line}</td>
+          <td>${fmtPct(r.prob_under)}</td>
+          <td>${fmtPct(r.prob_over)}</td>
+          <td>${r.recommendation || "--"}</td>
+        </tr>
+      `).join("");
+    }
+
+    const details = document.getElementById("draftDetails");
+    if (details) details.innerText = data.summary || "";
+    showDraftStatus("Análise concluída.", "success");
+  } catch (err) {
+    showDraftStatus("Erro de conexão.", "error");
+  }
+}
+
+const dotaLineMarkets = ["kills", "torres", "barracks", "roshans", "tempo"];
+const dotaObjectiveMarkets = ["first_tower", "first_blood", "first_roshan", "first_10", "first_10_kills"];
+
+function dotaIsLineMarket(stat) {
+  return dotaLineMarkets.includes(String(stat || "").toLowerCase());
+}
+
+function dotaIsFirstStat(stat) {
+  return dotaObjectiveMarkets.includes(String(stat || "").toLowerCase());
+}
+
+function syncDotaStatInputs() {
+  const stat = document.getElementById("dotaStat")?.value || "";
+  const isFirst = dotaIsFirstStat(stat);
+  const line = document.getElementById("dotaLine");
+  const label1 = document.getElementById("dotaOdd1Label");
+  const label2 = document.getElementById("dotaOdd2Label");
+  if (line) {
+    line.disabled = isFirst;
+    if (isFirst) line.value = "0.5";
+  }
+  if (label1) label1.innerText = isFirst ? "Odd (Time 1):" : "Odd Over:";
+  if (label2) label2.innerText = isFirst ? "Odd (Time 2):" : "Odd Under:";
+}
+
+function dotaFmtPct(v) {
+  const n = Number(v || 0);
+  return n.toFixed(2);
+}
+
+function dotaFmtFair(v) {
+  const n = Number(v || 0);
+  return n.toFixed(3);
+}
+
+function dotaFmtEvUnit(v) {
+  const n = Number(v || 0);
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}u`;
+}
+
+function dotaFmtEvPct(v) {
+  const n = Number(v || 0);
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+}
+
+function buildDotaText(data, payload) {
+  const stat = String(data.stat || payload.stat || "").toLowerCase();
+  const isLineMarket = dotaIsLineMarket(stat);
+  if (isLineMarket) {
+    return buildDotaLineMarketText(data, payload);
+  }
+  return buildDotaObjectiveText(data, payload);
+}
+
+function buildDotaLineMarketText(data, payload) {
+  const raw = data.raw || {};
+  const team1Games = raw.team1_games || payload.limit_games;
+  const team2Games = raw.team2_games || payload.limit_games;
+  const team1Over = raw.team1_over ?? 0;
+  const team1Under = raw.team1_under ?? 0;
+  const team2Over = raw.team2_over ?? 0;
+  const team2Under = raw.team2_under ?? 0;
+  const overAll = raw.over_all ?? team1Over + team2Over;
+  const underAll = raw.under_all ?? team1Under + team2Under;
+  const totalAll = overAll + underAll;
+  const team1Mean = raw.mean_team1 ?? 0;
+  const team2Mean = raw.mean_team2 ?? 0;
+  const overPct = totalAll ? (overAll / totalAll) * 100 : 0;
+  const underPct = totalAll ? (underAll / totalAll) * 100 : 0;
+  const stat = String(data.stat || payload.stat || "").toLowerCase();
+  const titleStat = stat.toUpperCase();
+
+  return `================================================================================
+📊 ${titleStat} — ${data.team1} vs ${data.team2}
+================================================================================
+
+📉 Estatísticas por time:
+
+🔵 ${data.team1}
+• Média: ${Number(team1Mean).toFixed(2)} (${team1Games} jogos)
+• UNDER: ${team1Under} jogos (${team1Games ? ((team1Under / team1Games) * 100).toFixed(2) : "0.00"}%)
+• OVER:  ${team1Over} jogos (${team1Games ? ((team1Over / team1Games) * 100).toFixed(2) : "0.00"}%)
+
+🔴 ${data.team2}
+• Média: ${Number(team2Mean).toFixed(2)} (${team2Games} jogos)
+• UNDER: ${team2Under} jogos (${team2Games ? ((team2Under / team2Games) * 100).toFixed(2) : "0.00"}%)
+• OVER:  ${team2Over} jogos (${team2Games ? ((team2Over / team2Games) * 100).toFixed(2) : "0.00"}%)
+
+📊 Estatísticas combinadas (${totalAll} jogos, ${stat}):
+• UNDER: ${underAll} (${underPct.toFixed(2)}%)
+• OVER:  ${overAll} (${overPct.toFixed(2)}%)
+
+================================================================================
+📈 PROBABILIDADES
+================================================================================
+
+Prob. Over ${data.line}: ${Number(data.prob_team1 || 0).toFixed(2)}%
+Prob. Under ${data.line}: ${Number(data.prob_team2 || 0).toFixed(2)}%
+
+================================================================================
+💰 EV E FAIR ODDS (Formato Pinnacle)
+================================================================================
+
+Over ${data.line}: EV = ${dotaFmtEvUnit(data.ev_team1)} (${dotaFmtEvPct(data.ev_team1_pct)}) | Fair = ${dotaFmtFair(data.fair_team1)}
+Under ${data.line}: EV = ${dotaFmtEvUnit(data.ev_team2)} (${dotaFmtEvPct(data.ev_team2_pct)}) | Fair = ${dotaFmtFair(data.fair_team2)}
+
+✅ ${data.recommendation}`;
+}
+
+function buildDotaObjectiveText(data, payload) {
+  const raw = data.raw || {};
+  const team1Games = raw.team1_games || payload.limit_games;
+  const team2Games = raw.team2_games || payload.limit_games;
+  const team1Hits = raw.team1_over ?? 0;
+  const team2Hits = raw.team2_over ?? 0;
+  const team1Rate = team1Games ? (team1Hits / team1Games) * 100 : 0;
+  const team2Rate = team2Games ? (team2Hits / team2Games) * 100 : 0;
+  const stat = data.stat || payload.stat;
+  const titleStat = String(stat || "").replaceAll("_", " ").toUpperCase();
+  return `================================================================================
+📊 ${titleStat} — ${data.team1} vs ${data.team2}
+================================================================================
+
+📉 Taxa de conquista por time (qual time pegou o objetivo):
+
+🔵 ${data.team1}
+• Taxa: ${team1Rate.toFixed(1)}% (${team1Hits}/${team1Games} pegou).
+
+🔴 ${data.team2}
+• Taxa: ${team2Rate.toFixed(1)}% (${team2Hits}/${team2Games} pegou).
+
+📊 Probabilidades para o confronto (${stat}):
+• Time 1: ${dotaFmtPct(data.prob_team1)}%
+• Time 2: ${dotaFmtPct(data.prob_team2)}%
+
+================================================================================
+📈 PROBABILIDADES
+================================================================================
+
+Prob. Time 1: ${dotaFmtPct(data.prob_team1)}%
+Prob. Time 2: ${dotaFmtPct(data.prob_team2)}%
+
+================================================================================
+💰 EV E FAIR ODDS (Formato Pinnacle)
+================================================================================
+
+Time 1: EV = ${dotaFmtEvUnit(data.ev_team1)} (${dotaFmtEvPct(data.ev_team1_pct)}) | Fair = ${dotaFmtFair(data.fair_team1)}
+Time 2: EV = ${dotaFmtEvUnit(data.ev_team2)} (${dotaFmtEvPct(data.ev_team2_pct)}) | Fair = ${dotaFmtFair(data.fair_team2)}
+
+✅ ${data.recommendation}`;
+}
+
+async function calcularDotaPrebet() {
+  const resultEl = document.getElementById("dotaPrebetResult");
+  const btn = document.getElementById("dotaCalculateBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Calculando...";
+  }
+  if (resultEl) resultEl.innerText = "";
+  showDotaStatus("Calculando...", "info");
+
+  const payload = {
+    team1: document.getElementById("dotaTeam1").value,
+    team2: document.getElementById("dotaTeam2").value,
+    stat: document.getElementById("dotaStat").value,
+    line: Number(document.getElementById("dotaLine").value),
+    odd_team1: Number(document.getElementById("dotaOddTeam1").value),
+    odd_team2: Number(document.getElementById("dotaOddTeam2").value),
+    limit_games: Number(document.getElementById("dotaLimitGames").value),
+    h2h_months: Number(document.getElementById("dotaH2hMonths").value),
+    use_h2h: Boolean(document.getElementById("dotaUseH2h").checked),
+  };
+
+  try {
+    const res = await fetch("/api/dota/prebets", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (resultEl) resultEl.innerText = JSON.stringify(data, null, 2);
+      showDotaStatus(detailToMessage(data.detail) || "Erro ao calcular Dota.", "error");
+      return;
+    }
+    if (resultEl) resultEl.innerText = buildDotaText(data, payload);
+    showDotaStatus("Cálculo concluído.", "success");
+  } catch (err) {
+    if (resultEl) resultEl.innerText = String(err);
+    showDotaStatus("Erro de conexão.", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Calcular";
+    }
+  }
+}
+
+function getDotaDraftPicks(prefix) {
+  return [1, 2, 3, 4, 5]
+    .map((i) => document.getElementById(`${prefix}${i}`).value.trim())
+    .filter(Boolean);
+}
+
+function fmtImpact(v) {
+  const n = Number(v || 0);
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}`;
+}
+
+function fmtPct(v) {
+  return `${Number(v || 0).toFixed(1)}%`;
+}
+
+function buildDraftText(data) {
+  const raw = data.raw || {};
+  const radiantImpacts = raw.radiant_impacts || [];
+  const direImpacts = raw.dire_impacts || [];
+
+  const impactLine = (item) => {
+    const dot = item.impact >= 0 ? "🟢" : "🔴";
+    return `${item.hero.padEnd(16)} → ${fmtImpact(item.impact).padStart(6)} ${dot} | ${item.games} jogos`;
+  };
+
+  const predictionLine = (line) => {
+    const rec = line.recommendation;
+    const prob =
+      rec === "OVER"
+        ? `Prob(OVER): ${fmtPct(line.prob_over)}`
+        : `Prob(UNDER): ${fmtPct(line.prob_under)}`;
+
+    return `Linha ${line.line}: ${rec} | ${prob} | Confiança: ${line.confidence}`;
+  };
+  const rawDebug = {
+    team_factor: data.team_factor || raw.team_factor || null,
+    kills_estimadas: raw.kills_estimadas ?? data.estimated_kills,
+    global_mean: data.global_mean ?? raw.global_mean,
+    draft_multiplier: data.draft_multiplier ?? raw.draft_multiplier,
+    predictions: data.raw_predictions || raw.predictions || {},
+  };
+
+  return `================================================================================
+📊 ANÁLISE DE DRAFT - DOTA
+================================================================================
+Curva isotônica + Draft Strength (S) + min_games.
+
+🟩 Radiant vs 🟥 Dire
+
+ℹ️ Esta aba usa apenas o draft.
+Nomes dos times são ignorados no cálculo.
+
+🟩 RADIANT:
+${radiantImpacts.map(impactLine).join("\n")}
+
+🟥 DIRE:
+${direImpacts.map(impactLine).join("\n")}
+
+================================================================================
+📈 IMPACTO TOTAL DO DRAFT
+================================================================================
+Radiant total: ${fmtImpact(data.radiant_total)}
+Dire total:    ${fmtImpact(data.dire_total)}
+Total geral:   ${fmtImpact(data.draft_total)}
+
+🎯 Kills estimadas (global_mean + draft_total): ${Number(data.estimated_kills || 0).toFixed(2)}
+
+================================================================================
+📊 PREVISÕES POR LINHA (curva v2.7)
+================================================================================
+${(data.lines || []).map(predictionLine).join("\n")}
+
+================================================================================
+🧪 DEBUG TEMPORÁRIO
+================================================================================
+raw.team_factor:
+${JSON.stringify(rawDebug.team_factor, null, 2)}
+
+raw.kills_estimadas:
+${JSON.stringify(rawDebug.kills_estimadas, null, 2)}
+
+raw.predictions:
+${JSON.stringify(rawDebug.predictions, null, 2)}`;
+}
+
+async function analisarDotaDraft() {
+  const btn = document.getElementById("dotaDraftAnalyzeBtn");
+  const resultBox = document.getElementById("dotaDraftResult");
+  const rowsEl = document.getElementById("dotaDraftRows");
+  const textEl = document.getElementById("dotaDraftText");
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Analisando...";
+  }
+  if (resultBox) resultBox.classList.add("hidden");
+  if (rowsEl) rowsEl.innerHTML = "";
+  if (textEl) textEl.innerText = "";
+  showDotaDraftStatus("Analisando draft...", "info");
+
+  const payload = {
+    radiant_team: document.getElementById("dotaDraftRadiantTeam").value,
+    dire_team: document.getElementById("dotaDraftDireTeam").value,
+    limit_games: Number(document.getElementById("dotaDraftLimitGames").value),
+    radiant_picks: getDotaDraftPicks("dotaRadiantPick"),
+    dire_picks: getDotaDraftPicks("dotaDirePick"),
+  };
+
+  try {
+    const res = await fetch("/api/dota/draft", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (textEl) textEl.innerText = JSON.stringify(data, null, 2);
+      if (resultBox) resultBox.classList.remove("hidden");
+      showDotaDraftStatus(detailToMessage(data.detail) || "Erro ao analisar Draft Dota.", "error");
+      return;
+    }
+
+    if (rowsEl) {
+      rowsEl.innerHTML = (data.lines || []).map((line) => `
+        <tr>
+          <td>${line.line}</td>
+          <td>${dotaFmtPct(line.prob_under)}%</td>
+          <td>${dotaFmtPct(line.prob_over)}%</td>
+          <td>${line.recommendation || "--"}</td>
+          <td>${line.confidence || "--"}</td>
+        </tr>
+      `).join("");
+    }
+    if (textEl) textEl.innerText = buildDraftText(data);
+    if (resultBox) resultBox.classList.remove("hidden");
+    showDotaDraftStatus("Análise concluída.", "success");
+  } catch (err) {
+    if (textEl) textEl.innerText = String(err);
+    if (resultBox) resultBox.classList.remove("hidden");
+    showDotaDraftStatus("Erro de conexão.", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Analisar Draft";
+    }
+  }
+}
+
+async function calcularFootballTeamPrebet() {
+  const resultEl = document.getElementById("footballTeamResult");
+  const btn = document.getElementById("footballTeamCalculateBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Calculando...";
+  }
+  if (resultEl) resultEl.innerText = "";
+  showFootballStatus("Calculando pré-bet de futebol...", "info");
+
+  const payload = {
+    team1_id: Number(document.getElementById("footballTeam1Id").value),
+    team1_name: document.getElementById("footballTeam1Name").value,
+    team2_id: Number(document.getElementById("footballTeam2Id").value),
+    team2_name: document.getElementById("footballTeam2Name").value,
+    stat: document.getElementById("footballStat").value,
+    line: toNumberBR(document.getElementById("footballLine").value),
+    odd_over: toNumberBR(document.getElementById("footballOddOver").value),
+    odd_under: toNumberBR(document.getElementById("footballOddUnder").value),
+    limit_games: Number(document.getElementById("footballLimitGames").value),
+    h2h_months: Number(document.getElementById("footballH2hMonths").value),
+    use_h2h: Boolean(document.getElementById("footballUseH2h").checked),
+    referee_name: document.getElementById("footballRefereeName").value,
+    referee_sample_games: Number(document.getElementById("footballRefereeSampleGames").value),
+  };
+
+  try {
+    const res = await fetch("/api/football/prebets/team", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw_response: text };
+    }
+    if (!res.ok || data.error) {
+      if (resultEl) resultEl.innerText = JSON.stringify(data, null, 2);
+      showFootballStatus(data.error || detailToMessage(data.detail) || `HTTP ${res.status}`, "error");
+      return;
+    }
+    if (resultEl) resultEl.innerText = data.text || JSON.stringify(data, null, 2);
+    showFootballStatus("Cálculo concluído.", "success");
+  } catch (err) {
+    if (resultEl) resultEl.innerText = String((err && err.message) || err);
+    showFootballStatus("Erro de conexão.", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Calcular (equipas)";
+    }
+  }
+}
+
+function appendUpdateLog(message) {
+  const el = document.getElementById("updateDatabaseLog");
+  if (!el) return;
+  const now = new Date().toLocaleString();
+  const current = el.innerText && !el.innerText.includes("Nenhuma atualização")
+    ? el.innerText + "\n\n"
+    : "";
+  el.innerText = `${current}[${now}]\n${message}`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runUpdateAction(action) {
+  const config = {
+    "lol-prebets": { url: "/api/admin/update/lol-prebets", payload: {} },
+    "lol-draft": { url: "/api/admin/update/lol-draft", payload: {} },
+    "dota-prebets": {
+      url: "/api/admin/update/dota-prebets",
+      payload: { team_id: document.getElementById("updateDotaTeamId")?.value || "" },
+    },
+    "dota-draft-live": {
+      url: "/api/admin/update/dota-draft-live",
+      payload: {
+        league_id: document.getElementById("updateDotaLeagueId")?.value || "",
+        league_name: document.getElementById("updateDotaLeagueName")?.value || "",
+        opendota_api_key: document.getElementById("updateOpenDotaKey")?.value || "",
+      },
+    },
+  }[action];
+
+  if (!config) {
+    appendUpdateLog(`Ação desconhecida: ${action}`);
+    return;
+  }
+
+  appendUpdateLog(`Enviando ${action}...`);
+  try {
+    const res = await fetch(config.url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(config.payload),
+    });
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw_response: text };
+    }
+    const safeData = {...data};
+    if (Object.prototype.hasOwnProperty.call(safeData, "opendota_api_key")) {
+      safeData.opendota_api_key = "[redacted]";
+    }
+    appendUpdateLog(JSON.stringify(safeData, null, 2));
+    if (!res.ok || data.ok === false || data.error) {
+      appendUpdateLog(`Erro em ${action}: ${data.error || data.detail || `HTTP ${res.status}`}`);
+    }
+  } catch (err) {
+    appendUpdateLog(`Erro em ${action}: ${String((err && err.message) || err)}`);
+  }
+}
+
+function setupTeamAutocomplete(inputId, boxId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  let currentItems = [];
+
+  async function search() {
+    const q = input.value.trim();
+    box.innerHTML = "";
+    currentItems = [];
+
+    if (q.length < 2) return;
+
+    const res = await fetch(`/api/lol/teams?q=${encodeURIComponent(q)}`);
+    if (!res.ok) {
+      console.warn("sugestões de times:", res.status);
+      return;
+    }
+    const data = await res.json();
+    const seen = new Set();
+    currentItems = (data || []).filter((item) => {
+      const k = (item.name || "").toLowerCase().trim();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    currentItems.forEach((item) => {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.textContent = item.name;
+      div.onclick = () => {
+        input.value = item.name;
+        box.innerHTML = "";
+      };
+      box.appendChild(div);
+    });
+  }
+
+  input.addEventListener("input", search);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && currentItems.length > 0) {
+      e.preventDefault();
+      input.value = currentItems[0].name;
+      box.innerHTML = "";
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!box.contains(e.target) && e.target !== input) {
+      box.innerHTML = "";
+    }
+  });
+}
+
+function setupPlayerAutocomplete(inputId, boxId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  let currentItems = [];
+
+  async function search() {
+    const q = input.value.trim();
+    box.innerHTML = "";
+    currentItems = [];
+    if (q.length < 2) return;
+
+    const res = await fetch(`/api/lol/players?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const seen = new Set();
+    currentItems = (data || []).filter((item) => {
+      const k = (item.name || "").toLowerCase().trim();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    currentItems.forEach((item) => {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.textContent = item.name;
+      div.onclick = () => {
+        input.value = item.name;
+        box.innerHTML = "";
+      };
+      box.appendChild(div);
+    });
+  }
+
+  input.addEventListener("input", search);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && currentItems.length > 0) {
+      e.preventDefault();
+      input.value = currentItems[0].name;
+      box.innerHTML = "";
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!box.contains(e.target) && e.target !== input) box.innerHTML = "";
+  });
+}
+
+setupTeamAutocomplete("team1", "team1Suggestions");
+setupTeamAutocomplete("team2", "team2Suggestions");
+setupPlayerAutocomplete("playerName", "playerSuggestions");
+syncDotaStatInputs();
+showPage("lolTeamsPage");
+</script>
+
+</body>
+</html>
