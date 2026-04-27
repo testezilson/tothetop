@@ -1,0 +1,27 @@
+[phases.setup]
+nixPkgs = [
+  "python313",
+  "chromium",
+  "chromedriver",
+  "glib",
+  "nss",
+  "nspr",
+  "atk",
+  "at-spi2-atk",
+  "cups",
+  "dbus",
+  "expat",
+  "libxkbcommon",
+  "pango",
+  "cairo",
+  "alsa-lib",
+  "libdrm",
+  "mesa",
+  "xorg.libX11",
+  "xorg.libXcomposite",
+  "xorg.libXdamage",
+  "xorg.libXext",
+  "xorg.libXfixes",
+  "xorg.libXrandr",
+  "xorg.libxcb"
+]
