@@ -1,9 +1,11 @@
 import os
 import re
+import shutil
 import time
 from datetime import datetime
 
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -14,10 +16,25 @@ from selenium.common.exceptions import (
 )
 
 
+def resolve_chrome_binary():
+    """Caminho do executável Chromium/Chrome (env Nix/Railway ou PATH)."""
+    return (
+        os.environ.get("CHROME_BIN")
+        or os.environ.get("CHROMIUM_BIN")
+        or shutil.which("chromium")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+        or shutil.which("google-chrome-stable")
+    )
+
+
 def build_chrome_options():
     """Opções de Chrome: headless + flags para Linux/Railway quando SELENIUM_HEADLESS=1 ou RAILWAY."""
     options = webdriver.ChromeOptions()
     options.add_argument("--window-size=1920,1080")
+    chrome_path = resolve_chrome_binary()
+    if chrome_path:
+        options.binary_location = chrome_path
     use_headless = bool(os.environ.get("RAILWAY_ENVIRONMENT")) or os.environ.get("SELENIUM_HEADLESS", "1") == "1"
     if use_headless:
         options.add_argument("--headless=new")
@@ -25,6 +42,16 @@ def build_chrome_options():
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
     return options
+
+
+def create_chrome_driver(options):
+    """
+    Usa chromedriver do PATH (ex.: Nix) para evitar Selenium Manager baixar driver incompatível.
+    """
+    driver_path = shutil.which("chromedriver")
+    if driver_path:
+        return webdriver.Chrome(service=Service(driver_path), options=options)
+    return webdriver.Chrome(options=options)
 
 # =========================================================
 # Debug helpers
@@ -443,7 +470,7 @@ def _extract_map_kills_fallback_global(driver, maps_played: int | None):
 # Main
 # =========================================================
 def scrap_match_page(url: str):
-    driver = webdriver.Chrome(options=build_chrome_options())
+    driver = create_chrome_driver(build_chrome_options())
     wait = WebDriverWait(driver, 20)
 
     base_url = _base_match_url(url)

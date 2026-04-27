@@ -17,10 +17,9 @@ _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-from scrap_match_cyberscore_sel import build_chrome_options, scrap_match_page
+from scrap_match_cyberscore_sel import build_chrome_options, create_chrome_driver, scrap_match_page
 
 _DEFAULT_DB = os.path.join(
     os.path.normpath(os.path.join(_SCRIPTS_DIR, "..")),
@@ -222,7 +221,7 @@ def get_page1_links(team_id):
             options.add_argument("--start-maximized")
         except Exception:
             pass
-    driver = webdriver.Chrome(options=options)
+    driver = create_chrome_driver(options)
 
     print(f"\n🌐 Abrindo: {url}")
     driver.get(url)

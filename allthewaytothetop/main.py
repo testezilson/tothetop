@@ -44,6 +44,51 @@ def _db_snapshot_cyberscore(path: str) -> dict[str, Any]:
         out["rows"] = None
     return out
 
+
+def _resolve_chrome_binary() -> str | None:
+    return (
+        os.environ.get("CHROME_BIN")
+        or os.environ.get("CHROMIUM_BIN")
+        or shutil.which("chromium")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+        or shutil.which("google-chrome-stable")
+    )
+
+
+def _selenium_stack_ok() -> tuple[bool, str, dict[str, Any]]:
+    """
+    Requer executável de navegador e chromedriver (evita Selenium Manager + DB vazio).
+    """
+    br = _resolve_chrome_binary()
+    dr = shutil.which("chromedriver")
+    details: dict[str, Any] = {
+        "resolved_chrome_binary": br,
+        "chromedriver": dr,
+        "CHROME_BIN": os.environ.get("CHROME_BIN"),
+        "CHROMIUM_BIN": os.environ.get("CHROMIUM_BIN"),
+    }
+    if not br and not dr:
+        return (
+            False,
+            "Nenhum Chromium/Chrome e nenhum chromedriver no PATH.",
+            details,
+        )
+    if not br:
+        return (
+            False,
+            "Chromium/Chrome não encontrado (defina CHROME_BIN/CHROMIUM_BIN ou nixpacks com chromium).",
+            details,
+        )
+    if not dr:
+        return (
+            False,
+            "chromedriver não está no PATH.",
+            details,
+        )
+    return True, "", details
+
+
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -260,13 +305,14 @@ def debug_dota_runtime(
         "DATA_DIR": path_in_data(""),
         "DOTA_DB_PATH_env": os.environ.get("DOTA_DB_PATH"),
         "db": file_info(db_path),
+        "cyberscore_db": _db_snapshot_cyberscore(_cyberscore_db_path()),
         "team1": team1,
         "team2": team2,
         "stat": stat,
         "limit_games": limit_games,
     }
     if not db_path:
-        return info
+        return jsonable_encoder(info)
 
     conn = sqlite3.connect(db_path)
     try:
@@ -443,6 +489,27 @@ def update_dota_prebets(req: DotaPrebetsUpdateRequest):
             detail=f"Script não encontrado: {script_path}",
         )
 
+    ok_stack, reason, stack_details = _selenium_stack_ok()
+    if not ok_stack:
+        return JSONResponse(
+            status_code=503,
+            content=jsonable_encoder(
+                {
+                    "ok": False,
+                    "error": "Chrome/Chromedriver não disponível no container.",
+                    "log": f"{reason} Configure nixpacks.toml ou Dockerfile antes de rodar o import.",
+                    "team_id": team_id,
+                    "reason_detail": reason,
+                    "stack": stack_details,
+                    "db_before": None,
+                    "db_after": None,
+                    "stdout": "",
+                    "stderr": "",
+                    "returncode": None,
+                }
+            ),
+        )
+
     db_path = _cyberscore_db_path()
     db_before = _db_snapshot_cyberscore(db_path)
     data_dir = os.path.dirname(db_path)
@@ -509,6 +576,7 @@ def debug_selenium_runtime():
     which_chromium = shutil.which("chromium") or shutil.which("chromium-browser")
     which_d = shutil.which("chromedriver")
     sel_spec = importlib.util.find_spec("selenium")
+    ok_s, _reason, stack = _selenium_stack_ok()
     return JSONResponse(
         content=jsonable_encoder(
             {
@@ -520,6 +588,11 @@ def debug_selenium_runtime():
                 "which_chromedriver": which_d,
                 "selenium_import_ok": sel_spec is not None,
                 "RAILWAY_ENVIRONMENT": bool(os.environ.get("RAILWAY_ENVIRONMENT")),
+                "CHROME_BIN": os.environ.get("CHROME_BIN"),
+                "CHROMIUM_BIN": os.environ.get("CHROMIUM_BIN"),
+                "resolved_chrome_binary": stack.get("resolved_chrome_binary"),
+                "import_ready": bool(ok_s and sel_spec is not None),
+                "stack": stack,
                 "CYBERSCORE_DB_PATH": _cyberscore_db_path(),
             }
         )
