@@ -27,5 +27,8 @@ ENV CHROMIUM_BIN=/usr/bin/chromium
 ENV CYBERSCORE_DB_PATH=/app/data/cyberscore.db
 ENV SELENIUM_HEADLESS=1
 ENV PYTHONUNBUFFERED=1
+# Garante import de main.py em /app (evita "Could not import module main")
+ENV PYTHONPATH=/app
 
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Railway: expandir $PORT no shell; usar python -m uvicorn (sempre o pip do image)
+CMD ["sh", "-c", "exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
