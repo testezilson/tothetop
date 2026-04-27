@@ -1,11 +1,48 @@
+import hashlib
+import importlib.util
 import os
+import shutil
+import sqlite3
+import subprocess
 import sys
-from typing import List
+from typing import Any, List
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
+
+
+def _cyberscore_db_path() -> str:
+    default = str(BASE_DIR / "data" / "cyberscore.db")
+    return os.path.normpath(os.path.abspath(os.environ.get("CYBERSCORE_DB_PATH", default)))
+
+
+def _db_snapshot_cyberscore(path: str) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "exists": False,
+        "size": None,
+        "sha256": None,
+        "rows": None,
+    }
+    if not path or not os.path.isfile(path):
+        return out
+    out["exists"] = True
+    out["size"] = os.path.getsize(path)
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    out["sha256"] = h.hexdigest()
+    try:
+        conn = sqlite3.connect(path)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM matches")
+        out["rows"] = int(cur.fetchone()[0])
+        conn.close()
+    except Exception:
+        out["rows"] = None
+    return out
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -395,12 +432,63 @@ def update_lol_draft():
 
 @app.post("/api/admin/update/dota-prebets")
 def update_dota_prebets(req: DotaPrebetsUpdateRequest):
-    return {
-        "ok": True,
-        "message": "Endpoint recebido.",
-        "team_id": req.team_id,
-        "log": f"Recebido: atualizar Dota Pré-bets para team_id={req.team_id}. Execução real ainda não plugada.",
+    team_id = (req.team_id or "").strip()
+    if not team_id:
+        raise HTTPException(status_code=400, detail="team_id é obrigatório.")
+
+    script_path = BASE_DIR / "scripts" / "import_cyberscore_completo.py"
+    if not script_path.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Script não encontrado: {script_path}",
+        )
+
+    db_path = _cyberscore_db_path()
+    db_before = _db_snapshot_cyberscore(db_path)
+    data_dir = os.path.dirname(db_path)
+    if data_dir:
+        os.makedirs(data_dir, exist_ok=True)
+
+    env = os.environ.copy()
+    env["CYBERSCORE_DB_PATH"] = db_path
+    env["SELENIUM_HEADLESS"] = "1"
+    if "PYTHONUNBUFFERED" not in env:
+        env["PYTHONUNBUFFERED"] = "1"
+
+    timeout = int(os.environ.get("CYBERSCORE_IMPORT_TIMEOUT", "3600"))
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-u", str(script_path), team_id],
+            cwd=str(BASE_DIR),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        out = (proc.stdout or "") + ""
+        err = (proc.stderr or "") + ""
+        code = int(proc.returncode)
+    except subprocess.TimeoutExpired as e:
+        out = (e.stdout or "") if isinstance(e.stdout, str) else str(e.stdout or "")
+        err = (e.stderr or "") if isinstance(e.stderr, str) else str(e.stderr or "")
+        err = (err or "") + f"\n[timeout após {timeout}s]"
+        code = -1
+    except Exception as e:
+        out = ""
+        err = str(e)
+        code = -1
+
+    db_after = _db_snapshot_cyberscore(db_path)
+    body = {
+        "ok": code == 0,
+        "team_id": team_id,
+        "db_before": db_before,
+        "db_after": db_after,
+        "stdout": out,
+        "stderr": err,
+        "returncode": code,
     }
+    return JSONResponse(content=jsonable_encoder(body))
 
 
 @app.post("/api/admin/update/dota-draft-live")
@@ -415,6 +503,29 @@ def update_dota_draft_live(req: DotaDraftLiveUpdateRequest):
     }
 
 
+@app.get("/api/debug/selenium-runtime")
+def debug_selenium_runtime():
+    which_chrome = shutil.which("google-chrome") or shutil.which("google-chrome-stable")
+    which_chromium = shutil.which("chromium") or shutil.which("chromium-browser")
+    which_d = shutil.which("chromedriver")
+    sel_spec = importlib.util.find_spec("selenium")
+    return JSONResponse(
+        content=jsonable_encoder(
+            {
+                "ok": True,
+                "cwd": os.getcwd(),
+                "BASE_DIR": str(BASE_DIR),
+                "which_google_chrome": which_chrome,
+                "which_chromium": which_chromium,
+                "which_chromedriver": which_d,
+                "selenium_import_ok": sel_spec is not None,
+                "RAILWAY_ENVIRONMENT": bool(os.environ.get("RAILWAY_ENVIRONMENT")),
+                "CYBERSCORE_DB_PATH": _cyberscore_db_path(),
+            }
+        )
+    )
+
+
 @app.get("/api/debug/update-runtime")
 def debug_update_runtime():
     return {
@@ -427,6 +538,7 @@ def debug_update_runtime():
             "/api/admin/update/lol-draft",
             "/api/admin/update/dota-prebets",
             "/api/admin/update/dota-draft-live",
+            "/api/debug/selenium-runtime",
         ],
     }
 
