@@ -299,13 +299,23 @@ def debug_dota_runtime(
             "abs": os.path.abspath(path),
         }
 
+    cs_path = _cyberscore_db_path()
+    cs_snap = _db_snapshot_cyberscore(cs_path)
+    cs_rows = cs_snap.get("rows")
     info = {
         "cwd": os.getcwd(),
         "BASE_DIR": str(paths_base),
         "DATA_DIR": path_in_data(""),
         "DOTA_DB_PATH_env": os.environ.get("DOTA_DB_PATH"),
         "db": file_info(db_path),
-        "cyberscore_db": _db_snapshot_cyberscore(_cyberscore_db_path()),
+        "cyberscore_db_path": cs_path,
+        "cyberscore_db": cs_snap,
+        # True se já há partidas importadas — com rows==0 restaure cyberscore.db antes de "Atualizar Banco Dota Pré-bets"
+        "cyberscore_ready_for_prebets_update": bool(
+            cs_snap.get("exists")
+            and cs_rows is not None
+            and cs_rows > 0
+        ),
         "team1": team1,
         "team2": team2,
         "stat": stat,
