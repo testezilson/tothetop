@@ -1613,7 +1613,8 @@ async function runUpdateAction(action) {
     }
     appendUpdateLog(JSON.stringify(safeData, null, 2));
     if (!res.ok || data.ok === false || data.error) {
-      appendUpdateLog(`Erro em ${action}: ${data.error || data.detail || `HTTP ${res.status}`}`);
+      const msg = data.warning || data.error || data.detail || `HTTP ${res.status}`;
+      appendUpdateLog(`Aviso/erro em ${action}: ${msg}`);
     }
   } catch (err) {
     appendUpdateLog(`Erro em ${action}: ${String((err && err.message) || err)}`);

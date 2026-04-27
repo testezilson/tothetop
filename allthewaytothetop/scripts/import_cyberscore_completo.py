@@ -160,7 +160,7 @@ def sync_columns():
 
 
 def extract_match_id(url: str):
-    m = re.search(r"/matches/(\d+)/?$", url)
+    m = re.search(r"/matches/(\d+)", url)
     return m.group(1) if m else None
 
 
@@ -234,12 +234,28 @@ def get_page1_links(team_id):
     raw_links = []
     for e in driver.find_elements(By.TAG_NAME, "a"):
         href = e.get_attribute("href")
-        if href and re.search(r"/matches/\d+/?$", href):
-            raw_links.append(href)
+        if not href:
+            continue
+        m = re.search(r"/matches/(\d+)", href)
+        if not m:
+            continue
+        match_id = m.group(1)
+        raw_links.append(f"https://cyberscore.live/en/matches/{match_id}/")
+
+    links = sorted(set(raw_links))
+
+    if not links:
+        print("⚠️ Nenhum link encontrado via href. Dump de debug:")
+        try:
+            print(driver.current_url)
+        except Exception as e:
+            print(f"current_url: {e}")
+        try:
+            print(driver.execute_script("return (document.body && document.body.innerText) ? document.body.innerText.slice(0, 2000) : '';"))
+        except Exception as e:
+            print(f"Erro ao ler body text: {e}")
 
     driver.quit()
-
-    links = list(set(raw_links))
     print(f"🔗 Partidas válidas encontradas: {len(links)}")
     return links
 
