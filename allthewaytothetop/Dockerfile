@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN chmod +x /app/start.sh
+
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMIUM_BIN=/usr/bin/chromium
 ENV CYBERSCORE_DB_PATH=/app/data/cyberscore.db
@@ -28,4 +30,5 @@ ENV SELENIUM_HEADLESS=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Em Railway: Settings → Deploy → deixe Start Command vazio para não sobrescrever isto
+CMD ["/app/start.sh"]

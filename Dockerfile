@@ -22,13 +22,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY allthewaytothetop/ .
 
+RUN chmod +x /app/start.sh
+
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMIUM_BIN=/usr/bin/chromium
 ENV CYBERSCORE_DB_PATH=/app/data/cyberscore.db
 ENV SELENIUM_HEADLESS=1
 ENV PYTHONUNBUFFERED=1
-# Garante import de main.py em /app (evita "Could not import module main")
 ENV PYTHONPATH=/app
 
-# $PORT só expande dentro de sh -c (não use forma JSON/exec com "$PORT" literal)
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Railway: Start Command vazio; senão o painel ignora o CMD
+CMD ["/app/start.sh"]
